@@ -86,6 +86,15 @@ export interface PipelineSettings {
   cameraWhiteBalanceTemp: number;
 
   blockForFrames: boolean;
+
+  udpSenderEnabled: boolean;
+  udpCameraId: number;
+  udpOffsetX: number;
+  udpOffsetY: number;
+  udpOffsetZ: number;
+  udpOffsetRoll: number;
+  udpOffsetPitch: number;
+  udpOffsetYaw: number;
 }
 export type ConfigurablePipelineSettings = Partial<
   Omit<
@@ -152,7 +161,16 @@ export const DefaultPipelineSettings: Omit<
   cameraWhiteBalanceTemp: 4000,
   cameraMinExposureRaw: 1,
   cameraMaxExposureRaw: 2,
-  blockForFrames: true
+  blockForFrames: true,
+
+  udpSenderEnabled: false,
+  udpCameraId: 0,
+  udpOffsetX: 0.0,
+  udpOffsetY: 0.0,
+  udpOffsetZ: 0.0,
+  udpOffsetRoll: 0.0,
+  udpOffsetPitch: 0.0,
+  udpOffsetYaw: 0.0
 };
 
 export interface ReflectivePipelineSettings extends PipelineSettings {

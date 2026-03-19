@@ -38,6 +38,7 @@ import org.photonvision.common.dataflow.statusLEDs.StatusLEDConsumer;
 import org.photonvision.common.dataflow.websocket.UICameraConfiguration;
 import org.photonvision.common.dataflow.websocket.UIDataPublisher;
 import org.photonvision.common.dataflow.websocket.UIPhotonConfiguration;
+import org.photonvision.common.dataflow.whacknet.WhacknetPublisher;
 import org.photonvision.common.hardware.HardwareManager;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
@@ -80,6 +81,7 @@ public class VisionModule {
     private final NTDataPublisher ntConsumer;
     private final UIDataPublisher uiDataConsumer;
     private final StatusLEDConsumer statusLEDsConsumer;
+    private final WhacknetPublisher whacknetConsumer;
     protected final QuirkyCamera cameraQuirks;
 
     protected TrackedTarget lastPipelineResultBestTarget;
@@ -106,6 +108,7 @@ public class VisionModule {
 
         mismatch = false;
 
+        whacknetConsumer = new WhacknetPublisher(pipelineManager::getCurrentPipelineSettings);
         cameraQuirks = visionSource.getCameraConfiguration().cameraQuirks;
 
         if (visionSource.getCameraConfiguration().cameraQuirks == null)
@@ -160,6 +163,7 @@ public class VisionModule {
         addResultConsumer(ntConsumer);
         addResultConsumer(uiDataConsumer);
         addResultConsumer(statusLEDsConsumer);
+        addResultConsumer(whacknetConsumer);
         addResultConsumer(
                 (result) ->
                         lastPipelineResultBestTarget = result.hasTargets() ? result.targets.get(0) : null);
