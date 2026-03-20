@@ -46,17 +46,17 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
 
     private static final double AMBIGUITY_CUTOFF = 0.05;
     private static final double SINGLE_TAG_POSE_CUTOFF_METERS = 4.0;
-    
+
     private static final double[] SINGLE_TAG_BASE_STD_DEVS = {2.0, 2.0, 4.0};
     private static final double[] MULTI_TAG_BASE_STD_DEVS = {0.5, 0.5, 1.0};
     private static final double[] INVALID_STD_DEVS = {0.0, 0.0, 0.0};
 
     private DatagramChannel channel;
     private final Supplier<CVPipelineSettings> settingsSupplier;
-    
+
     // Direct buffer for zero-copy JNI transitions
     private final ByteBuffer buf = ByteBuffer.allocateDirect(64).order(ByteOrder.LITTLE_ENDIAN);
-    
+
     private String lastIpString = "";
     private InetSocketAddress resolvedAddress;
     private Transform3d cachedRobotToCameraInverted = new Transform3d();
@@ -100,14 +100,14 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
                 var mtr = result.multiTagResult.get();
                 fieldToCamera = mtr.estimatedPose.best;
                 usedTagCount = mtr.fiducialIDsUsed.size();
-            } 
-            else if (!result.targets.isEmpty() && result.targets.get(0).isFiducial()) {
+            } else if (!result.targets.isEmpty() && result.targets.get(0).isFiducial()) {
                 var target = result.targets.get(0);
                 if (isUsableSingleTag(target)) {
                     var tagPose = tagCache.get(target.getFiducialId());
                     if (tagPose != null) {
-                        fieldToCamera = new Transform3d(tagPose.getTranslation(), tagPose.getRotation())
-                                            .plus(target.getBestCameraToTarget3d().inverse());
+                        fieldToCamera =
+                                new Transform3d(tagPose.getTranslation(), tagPose.getRotation())
+                                        .plus(target.getBestCameraToTarget3d().inverse());
                         usedTagCount = 1;
                     }
                 }
@@ -116,7 +116,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
             if (fieldToCamera != null) {
                 updateTransformCache(settings);
                 Transform3d fieldToRobot = fieldToCamera.plus(cachedRobotToCameraInverted);
-                
+
                 poseX = fieldToRobot.getX();
                 poseY = fieldToRobot.getY();
                 poseRot = fieldToRobot.getRotation().getZ();
@@ -133,16 +133,16 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         buf.putDouble(stdDevs[0]);
         buf.putDouble(stdDevs[1]);
         buf.putDouble(stdDevs[2]);
-        
+
         long nowNanos = MathUtils.wpiNanoTime();
         long captureNanos = result.getImageCaptureTimestampNanos();
         long pipelineDelayMicros = (nowNanos - captureNanos) / 1000;
         buf.putLong(pipelineDelayMicros);
-        
+
         buf.put((byte) settings.whacknetCameraId);
         buf.put((byte) usedTagCount);
-        
-        while(buf.hasRemaining()) buf.put((byte) 0);
+
+        while (buf.hasRemaining()) buf.put((byte) 0);
         buf.flip();
 
         sendPacket();
@@ -160,7 +160,8 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         }
     }
 
-    private void calculateScaledStdDevs(Transform3d robotPose, List<TrackedTarget> targets, int tagCount) {
+    private void calculateScaledStdDevs(
+            Transform3d robotPose, List<TrackedTarget> targets, int tagCount) {
         if (tagCount == 0) {
             System.arraycopy(INVALID_STD_DEVS, 0, currentStdDevs, 0, 3);
             return;
@@ -172,7 +173,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         for (var target : targets) {
             var tagPose = tagCache.get(target.getFiducialId());
             if (tagPose == null) continue;
-            
+
             double dist = tagPose.getTranslation().getDistance(robotPose.getTranslation());
             totalDistance += dist;
             validTagsForDist++;
@@ -181,7 +182,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         double avgDist = (validTagsForDist > 0) ? (totalDistance / validTagsForDist) : 4.0;
         double[] base = (tagCount > 1) ? MULTI_TAG_BASE_STD_DEVS : SINGLE_TAG_BASE_STD_DEVS;
         double scaler = 1.0 + (Math.pow(avgDist, 2) / 30.0);
-        
+
         currentStdDevs[0] = base[0] * scaler;
         currentStdDevs[1] = base[1] * scaler;
         currentStdDevs[2] = base[2] * scaler;
@@ -191,7 +192,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         double ambiguity = target.getPoseAmbiguity();
         double distance = target.getBestCameraToTarget3d().getTranslation().getNorm();
 
-        return (ambiguity >= 0 && ambiguity < AMBIGUITY_CUTOFF) 
+        return (ambiguity >= 0 && ambiguity < AMBIGUITY_CUTOFF)
                 && (distance < SINGLE_TAG_POSE_CUTOFF_METERS);
     }
 
@@ -212,26 +213,27 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
             if (channel != null && resolvedAddress != null) {
                 channel.send(buf, resolvedAddress);
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
     }
 
     private void updateTransformCache(AdvancedPipelineSettings settings) {
-        if (lastSettings == null || 
-            settings.whacknetOffsetX != lastSettings.whacknetOffsetX || 
-            settings.whacknetOffsetY != lastSettings.whacknetOffsetY ||
-            settings.whacknetOffsetZ != lastSettings.whacknetOffsetZ ||
-            settings.whacknetOffsetRoll != lastSettings.whacknetOffsetRoll ||
-            settings.whacknetOffsetPitch != lastSettings.whacknetOffsetPitch ||
-            settings.whacknetOffsetYaw != lastSettings.whacknetOffsetYaw) {
-            
-            Transform3d robotToCamera = new Transform3d(
-                new Translation3d(settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
-                new Rotation3d(
-                    Units.degreesToRadians(settings.whacknetOffsetRoll),
-                    Units.degreesToRadians(settings.whacknetOffsetPitch),
-                    Units.degreesToRadians(settings.whacknetOffsetYaw)
-                )
-            );
+        if (lastSettings == null
+                || settings.whacknetOffsetX != lastSettings.whacknetOffsetX
+                || settings.whacknetOffsetY != lastSettings.whacknetOffsetY
+                || settings.whacknetOffsetZ != lastSettings.whacknetOffsetZ
+                || settings.whacknetOffsetRoll != lastSettings.whacknetOffsetRoll
+                || settings.whacknetOffsetPitch != lastSettings.whacknetOffsetPitch
+                || settings.whacknetOffsetYaw != lastSettings.whacknetOffsetYaw) {
+
+            Transform3d robotToCamera =
+                    new Transform3d(
+                            new Translation3d(
+                                    settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
+                            new Rotation3d(
+                                    Units.degreesToRadians(settings.whacknetOffsetRoll),
+                                    Units.degreesToRadians(settings.whacknetOffsetPitch),
+                                    Units.degreesToRadians(settings.whacknetOffsetYaw)));
             cachedRobotToCameraInverted = robotToCamera.inverse();
             lastSettings = settings;
         }

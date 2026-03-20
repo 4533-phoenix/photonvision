@@ -30,8 +30,7 @@ import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 
 /**
- * Whacknet Gyro Receiver.
- * Listens for high-frequency UDP packets containing robot telemetry.
+ * Whacknet Gyro Receiver. Listens for high-frequency UDP packets containing robot telemetry.
  * Performs clock translation to synchronize gyro data with camera frames.
  */
 public class WhacknetReceiver {
@@ -49,28 +48,21 @@ public class WhacknetReceiver {
         return SingletonHolder.INSTANCE;
     }
 
-    /**
-     * Represents the synchronized state of the robot at a specific point in time.
-     */
+    /** Represents the synchronized state of the robot at a specific point in time. */
     public static record GyroState(
             long rioTimestampMicros,
             long localTimestampMicros,
             double headingRadians,
             double velocityRadPerSec,
             long receiveTimeMillis) {
-        
+
         public boolean isStale() {
             return (System.currentTimeMillis() - receiveTimeMillis) > STALE_TIMEOUT_MS;
         }
     }
 
-    /**
-     * Represents the interpolated gyro position at a specific point in time.
-     */
-    public static record InterpolatedGyroState(
-            long localTimestampMicros,
-            double headingRadians
-    ) {}
+    /** Represents the interpolated gyro position at a specific point in time. */
+    public static record InterpolatedGyroState(long localTimestampMicros, double headingRadians) {}
 
     private final AtomicReference<GyroState> latestState = new AtomicReference<>(null);
     private Thread receiveThread;
@@ -80,12 +72,10 @@ public class WhacknetReceiver {
 
     private WhacknetReceiver() {}
 
-    /**
-     * Starts the background receiver thread if it isn't already running on the requested port.
-     */
+    /** Starts the background receiver thread if it isn't already running on the requested port. */
     public synchronized void start(int port) {
         if (running && currentPort == port) return;
-        
+
         stop(); // Ensure old resources are cleaned up if port changed
 
         try {
@@ -97,16 +87,14 @@ public class WhacknetReceiver {
             receiveThread = new Thread(this::receiveLoop, "WhacknetReceiverThread");
             receiveThread.setPriority(Thread.MAX_PRIORITY);
             receiveThread.start();
-            
+
             logger.info("Whacknet Receiver started on port " + port);
         } catch (SocketException e) {
             logger.error("Failed to open Whacknet UDP socket on port " + port, e);
         }
     }
 
-    /**
-     * Stops the receiver thread and closes the socket.
-     */
+    /** Stops the receiver thread and closes the socket. */
     public synchronized void stop() {
         running = false;
         if (receiveThread != null) {
@@ -129,7 +117,7 @@ public class WhacknetReceiver {
         while (running) {
             try {
                 socket.receive(packet);
-                
+
                 if (packet.getLength() < PACKET_SIZE) continue;
 
                 bb.rewind();
@@ -142,9 +130,15 @@ public class WhacknetReceiver {
                 long localTranslatedTimestamp = rioTimestamp - ntOffset;
 
                 // Create the gyro state
-                var state = new GyroState(rioTimestamp, localTranslatedTimestamp, heading, velocity, System.currentTimeMillis());
+                var state =
+                        new GyroState(
+                                rioTimestamp,
+                                localTranslatedTimestamp,
+                                heading,
+                                velocity,
+                                System.currentTimeMillis());
 
-                synchronized(history) {
+                synchronized (history) {
                     history.put(localTranslatedTimestamp, state);
                     long threshold = localTranslatedTimestamp - HISTORY_WINDOW_MICROS;
                     while (!history.isEmpty() && history.firstKey() < threshold) {
@@ -164,6 +158,7 @@ public class WhacknetReceiver {
 
     /**
      * Gets the most recent gyro data.
+     *
      * @return The latest GyroState, or null if no data received or data is stale (>100ms).
      */
     public GyroState getLatestState() {
@@ -175,18 +170,19 @@ public class WhacknetReceiver {
     }
 
     /**
-    * Finds the interpolated gyro state at a specific local timestamp.
-    * @return The interpolated GyroState, or null if no data is available.
-    */
+     * Finds the interpolated gyro state at a specific local timestamp.
+     *
+     * @return The interpolated GyroState, or null if no data is available.
+     */
     public InterpolatedGyroState getInterpolatedState(long localMicros) {
-        synchronized(history) {
+        synchronized (history) {
             if (history.isEmpty()) return null;
 
             var lowEntry = history.floorEntry(localMicros);
             var highEntry = history.ceilingEntry(localMicros);
 
             if (lowEntry == null) {
-                return null; 
+                return null;
             }
 
             long t0 = lowEntry.getKey();
@@ -195,8 +191,8 @@ public class WhacknetReceiver {
             // We project the heading forward using the last known velocity.
             if (highEntry == null || highEntry.getKey() == t0) {
                 double dtSeconds = (localMicros - t0) / 1_000_000.0;
-                
-                if (dtSeconds > 0.5) return null; 
+
+                if (dtSeconds > 0.5) return null;
 
                 double extrapolatedHeading = s0.headingRadians() + (s0.velocityRadPerSec() * dtSeconds);
                 return new InterpolatedGyroState(localMicros, normalizeAngle(extrapolatedHeading));
@@ -230,18 +226,14 @@ public class WhacknetReceiver {
             double h_11 = t3 - t2;
 
             // Resulting heading
-            double interpolatedHeading = (h_00 * h0) + 
-                                        (h_10 * v0 * deltaTime) + 
-                                        (h_01 * h1) + 
-                                        (h_11 * v1 * deltaTime);
+            double interpolatedHeading =
+                    (h_00 * h0) + (h_10 * v0 * deltaTime) + (h_01 * h1) + (h_11 * v1 * deltaTime);
 
             return new InterpolatedGyroState(localMicros, normalizeAngle(interpolatedHeading));
         }
     }
 
-    /**
-     * Standard angle normalization to keep radians within [-PI, PI]
-     */
+    /** Standard angle normalization to keep radians within [-PI, PI] */
     private double normalizeAngle(double radians) {
         while (radians > Math.PI) radians -= 2 * Math.PI;
         while (radians < -Math.PI) radians += 2 * Math.PI;

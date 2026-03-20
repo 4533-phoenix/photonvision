@@ -28,7 +28,6 @@ import org.photonvision.common.configuration.ConfigManager;
 import org.photonvision.common.dataflow.DataChangeService;
 import org.photonvision.common.dataflow.events.OutgoingUIEvent;
 import org.photonvision.common.dataflow.websocket.UIPhotonConfiguration;
-import org.photonvision.common.dataflow.whacknet.WhacknetReceiver;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.vision.camera.QuirkyCamera;

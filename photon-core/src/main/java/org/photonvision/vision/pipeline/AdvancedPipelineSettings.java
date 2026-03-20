@@ -103,7 +103,7 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
 
     public boolean useGyroConstraint = false;
     public double gyroWeight = 0.5;
-    
+
     /**
      * Handles backward compatibility for the deprecated outputShowMultipleTargets property. When
      * outputShowMultipleTargets is encountered during deserialization, it sets outputMaximumTargets
