@@ -180,33 +180,71 @@ public class WhacknetReceiver {
     */
     public InterpolatedGyroState getInterpolatedState(long localMicros) {
         synchronized(history) {
+            if (history.isEmpty()) return null;
+
             var lowEntry = history.floorEntry(localMicros);
             var highEntry = history.ceilingEntry(localMicros);
 
-            if (lowEntry == null || highEntry == null) return null;
-            
-            long lowKey = lowEntry.getKey();
-            long highKey = highEntry.getKey();
-            
-            if (lowKey == highKey) {
-                return new InterpolatedGyroState(localMicros, lowEntry.getValue().headingRadians());
+            if (lowEntry == null) {
+                return null; 
             }
 
-            double lowHeading = lowEntry.getValue().headingRadians();
-            double highHeading = highEntry.getValue().headingRadians();
+            long t0 = lowEntry.getKey();
+            GyroState s0 = lowEntry.getValue();
 
-            double diff = highHeading - lowHeading;
+            // We project the heading forward using the last known velocity.
+            if (highEntry == null || highEntry.getKey() == t0) {
+                double dtSeconds = (localMicros - t0) / 1_000_000.0;
+                
+                if (dtSeconds > 0.5) return null; 
 
+                double extrapolatedHeading = s0.headingRadians() + (s0.velocityRadPerSec() * dtSeconds);
+                return new InterpolatedGyroState(localMicros, normalizeAngle(extrapolatedHeading));
+            }
+
+            // Full Interpolation where we have floor and ceiling
+            long t1 = highEntry.getKey();
+            GyroState s1 = highEntry.getValue();
+
+            double deltaTime = (t1 - t0) / 1_000_000.0;
+            double t = (double) (localMicros - t0) / (t1 - t0);
+
+            double h0 = s0.headingRadians();
+            double v0 = s0.velocityRadPerSec();
+            double h1 = s1.headingRadians();
+            double v1 = s1.velocityRadPerSec();
+
+            // Ensure we interpolate across the shortest path
+            double diff = h1 - h0;
             while (diff > Math.PI) diff -= 2 * Math.PI;
             while (diff < -Math.PI) diff += 2 * Math.PI;
+            h1 = h0 + diff;
 
-            double t = (double) (localMicros - lowKey) / (highKey - lowKey);
-            double interpolatedHeading = lowHeading + (t * diff);
+            // Cubic Hermite Spline basis functions
+            double t2 = t * t;
+            double t3 = t2 * t;
 
-            while (interpolatedHeading > Math.PI) interpolatedHeading -= 2 * Math.PI;
-            while (interpolatedHeading < -Math.PI) interpolatedHeading += 2 * Math.PI;
+            double h_00 = 2 * t3 - 3 * t2 + 1;
+            double h_10 = t3 - 2 * t2 + t;
+            double h_01 = -2 * t3 + 3 * t2;
+            double h_11 = t3 - t2;
 
-            return new InterpolatedGyroState(localMicros, interpolatedHeading);
+            // Resulting heading
+            double interpolatedHeading = (h_00 * h0) + 
+                                        (h_10 * v0 * deltaTime) + 
+                                        (h_01 * h1) + 
+                                        (h_11 * v1 * deltaTime);
+
+            return new InterpolatedGyroState(localMicros, normalizeAngle(interpolatedHeading));
         }
+    }
+
+    /**
+     * Standard angle normalization to keep radians within [-PI, PI]
+     */
+    private double normalizeAngle(double radians) {
+        while (radians > Math.PI) radians -= 2 * Math.PI;
+        while (radians < -Math.PI) radians += 2 * Math.PI;
+        return radians;
     }
 }

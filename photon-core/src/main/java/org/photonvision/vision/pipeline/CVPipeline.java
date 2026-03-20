@@ -17,6 +17,7 @@
 
 package org.photonvision.vision.pipeline;
 
+import org.photonvision.common.dataflow.whacknet.WhacknetReceiver;
 import org.photonvision.common.dataflow.whacknet.WhacknetReceiver.InterpolatedGyroState;
 import org.photonvision.vision.camera.QuirkyCamera;
 import org.photonvision.vision.frame.Frame;
@@ -32,7 +33,7 @@ public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelin
     protected QuirkyCamera cameraQuirks;
 
     private final FrameThresholdType thresholdType;
-    protected InterpolatedGyroState lastGyroContext = null;
+    protected long lastCaptureTimestampMicros = 0;
 
     // So releaseable doesn't keep track of if we double-free something. so (ew) remember that here
     protected volatile boolean released = false;
@@ -66,8 +67,9 @@ public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelin
         this.settings = s;
     }
 
-    public void setGyroContext(InterpolatedGyroState gyroState) {
-        this.lastGyroContext = gyroState;
+    public InterpolatedGyroState getGyroContext() {
+        if (lastCaptureTimestampMicros == 0) return null;
+        return WhacknetReceiver.getInstance().getInterpolatedState(lastCaptureTimestampMicros);
     }
 
     public R run(Frame frame, QuirkyCamera cameraQuirks) {
@@ -77,6 +79,7 @@ public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelin
         if (settings == null) {
             throw new RuntimeException("No settings provided for pipeline!");
         }
+        this.lastCaptureTimestampMicros = frame.timestampNanos / 1000;
         setPipeParams(frame.frameStaticProperties, settings, cameraQuirks);
 
         // if (frame.image.getMat().empty()) {

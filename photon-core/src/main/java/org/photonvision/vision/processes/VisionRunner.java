@@ -195,12 +195,6 @@ public class VisionRunner {
                 frame.release();
                 pipelineResultConsumer.accept(new CVPipelineResult(0l, 0, 0, null, new Frame()));
             } else if (pipeline == pipelineSupplier.get()) {
-                long captureMicros = frame.timestampNanos / 1000;
-                var gyroState = WhacknetReceiver.getInstance().getInterpolatedState(captureMicros);
-                if (gyroState != null) {
-                    pipeline.setGyroContext(gyroState); 
-                }
-
                 // If the pipeline has changed while we are getting our frame we should scrap
                 // that frame it may result in incorrect frame settings like hsv values
 
