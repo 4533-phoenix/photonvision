@@ -234,31 +234,54 @@ const interactiveCols = computed(() =>
       <v-card-title class="pl-0 pt-3 pb-10px">Whacknet Vision Sender</v-card-title>
       
       <pv-switch
-        v-model="currentPipelineSettings.udpSenderEnabled"
+        v-model="currentPipelineSettings.whacknetSenderEnabled"
         label="Enable Whacknet"
         tooltip="Send targeting data via Whacknet."
         :switch-cols="interactiveCols"
-        @update:modelValue="(value) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpSenderEnabled: value }, false)"
+        @update:modelValue="(value) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetSenderEnabled: value }, false)"
       />
       
       <v-expand-transition>
-        <div v-if="currentPipelineSettings.udpSenderEnabled" class="px-2 pb-4">
+        <div v-if="currentPipelineSettings.whacknetSenderEnabled" class="px-2 pb-4">
           
           <!-- Camera ID -->
           <v-row class="mb-2">
             <v-col cols="12" sm="6">
               <v-text-field
-                v-model.number="currentPipelineSettings.udpCameraId"
+                v-model.number="currentPipelineSettings.whacknetCameraId"
                 label="Camera ID"
                 type="number"
                 density="compact"
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpCameraId: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetCameraId: parseFloat(val as string) || 0 }, false)"
               >
                 <template #prepend>
                   <v-tooltip location="top" text="The numeric ID assigned to this specific camera.">
+                    <template #activator="{ props }">
+                      <v-icon v-bind="props" size="small" color="primary">mdi-information</v-icon>
+                    </template>
+                  </v-tooltip>
+                </template>
+              </v-text-field>
+            </v-col>
+          </v-row>
+
+          <v-row class="mb-2">
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model.number="currentPipelineSettings.whacknetRioPort"
+                label="Rio Port"
+                type="number"
+                density="compact"
+                variant="underlined"
+                hide-details
+                color="primary"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetRioPort: parseFloat(val as string) || 0 }, false)"
+              >
+                <template #prepend>
+                  <v-tooltip location="top" text="The port number for the Rio connection.">
                     <template #activator="{ props }">
                       <v-icon v-bind="props" size="small" color="primary">mdi-information</v-icon>
                     </template>
@@ -275,7 +298,7 @@ const interactiveCols = computed(() =>
           <v-row dense class="mb-2">
             <v-col cols="4">
               <v-text-field
-                v-model.number="currentPipelineSettings.udpOffsetX"
+                v-model.number="currentPipelineSettings.whacknetOffsetX"
                 label="X"
                 type="number"
                 step="0.01"
@@ -283,12 +306,12 @@ const interactiveCols = computed(() =>
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpOffsetX: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetX: parseFloat(val as string) || 0 }, false)"
               />
             </v-col>
             <v-col cols="4">
               <v-text-field
-                v-model.number="currentPipelineSettings.udpOffsetY"
+                v-model.number="currentPipelineSettings.whacknetOffsetY"
                 label="Y"
                 type="number"
                 step="0.01"
@@ -296,12 +319,12 @@ const interactiveCols = computed(() =>
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpOffsetY: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetY: parseFloat(val as string) || 0 }, false)"
               />
             </v-col>
             <v-col cols="4">
               <v-text-field
-                v-model.number="currentPipelineSettings.udpOffsetZ"
+                v-model.number="currentPipelineSettings.whacknetOffsetZ"
                 label="Z"
                 type="number"
                 step="0.01"
@@ -309,7 +332,7 @@ const interactiveCols = computed(() =>
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpOffsetZ: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetZ: parseFloat(val as string) || 0 }, false)"
               />
             </v-col>
           </v-row>
@@ -319,7 +342,7 @@ const interactiveCols = computed(() =>
           <v-row dense>
             <v-col cols="4">
               <v-text-field
-                v-model.number="currentPipelineSettings.udpOffsetRoll"
+                v-model.number="currentPipelineSettings.whacknetOffsetRoll"
                 label="Roll"
                 type="number"
                 step="0.1"
@@ -327,12 +350,12 @@ const interactiveCols = computed(() =>
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpOffsetRoll: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetRoll: parseFloat(val as string) || 0 }, false)"
               />
             </v-col>
             <v-col cols="4">
               <v-text-field
-                v-model.number="currentPipelineSettings.udpOffsetPitch"
+                v-model.number="currentPipelineSettings.whacknetOffsetPitch"
                 label="Pitch"
                 type="number"
                 step="0.1"
@@ -340,12 +363,12 @@ const interactiveCols = computed(() =>
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpOffsetPitch: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetPitch: parseFloat(val as string) || 0 }, false)"
               />
             </v-col>
             <v-col cols="4">
               <v-text-field
-                v-model.number="currentPipelineSettings.udpOffsetYaw"
+                v-model.number="currentPipelineSettings.whacknetOffsetYaw"
                 label="Yaw"
                 type="number"
                 step="0.1"
@@ -353,7 +376,7 @@ const interactiveCols = computed(() =>
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ udpOffsetYaw: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetYaw: parseFloat(val as string) || 0 }, false)"
               />
             </v-col>
           </v-row>

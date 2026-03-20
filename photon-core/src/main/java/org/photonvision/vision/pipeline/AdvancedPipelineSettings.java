@@ -91,15 +91,15 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
     public int cornerDetectionSideCount = 4;
     public double cornerDetectionAccuracyPercentage = 10;
 
-    public boolean udpSenderEnabled = false;
-    public int udpCameraId = 0;
-    public double udpOffsetX = 0.0;
-    public double udpOffsetY = 0.0;
-    public double udpOffsetZ = 0.0;
-    public double udpOffsetRoll = 0.0;
-    public double udpOffsetPitch = 0.0;
-    public double udpOffsetYaw = 0.0;
-
+    public boolean whacknetSenderEnabled = false;
+    public int whacknetRioPort = 7001;
+    public int whacknetCameraId = 0;
+    public double whacknetOffsetX = 0.0;
+    public double whacknetOffsetY = 0.0;
+    public double whacknetOffsetZ = 0.0;
+    public double whacknetOffsetRoll = 0.0;
+    public double whacknetOffsetPitch = 0.0;
+    public double whacknetOffsetYaw = 0.0;
     /**
      * Handles backward compatibility for the deprecated outputShowMultipleTargets property. When
      * outputShowMultipleTargets is encountered during deserialization, it sets outputMaximumTargets
@@ -151,14 +151,15 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
                 && contourIntersection == that.contourIntersection
                 && Objects.equals(targetModel, that.targetModel)
                 && cornerDetectionStrategy == that.cornerDetectionStrategy
-                && udpSenderEnabled == that.udpSenderEnabled
-                && udpCameraId == that.udpCameraId
-                && Double.compare(that.udpOffsetX, udpOffsetX) == 0
-                && Double.compare(that.udpOffsetY, udpOffsetY) == 0
-                && Double.compare(that.udpOffsetZ, udpOffsetZ) == 0
-                && Double.compare(that.udpOffsetRoll, udpOffsetRoll) == 0
-                && Double.compare(that.udpOffsetPitch, udpOffsetPitch) == 0
-                && Double.compare(that.udpOffsetYaw, udpOffsetYaw) == 0;
+                && whacknetSenderEnabled == that.whacknetSenderEnabled
+                && whacknetRioPort == that.whacknetRioPort
+                && whacknetCameraId == that.whacknetCameraId
+                && Double.compare(that.whacknetOffsetX, whacknetOffsetX) == 0
+                && Double.compare(that.whacknetOffsetY, whacknetOffsetY) == 0
+                && Double.compare(that.whacknetOffsetZ, whacknetOffsetZ) == 0
+                && Double.compare(that.whacknetOffsetRoll, whacknetOffsetRoll) == 0
+                && Double.compare(that.whacknetOffsetPitch, whacknetOffsetPitch) == 0
+                && Double.compare(that.whacknetOffsetYaw, whacknetOffsetYaw) == 0;
     }
 
     @Override
@@ -193,13 +194,14 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
                 cornerDetectionExactSideCount,
                 cornerDetectionSideCount,
                 cornerDetectionAccuracyPercentage,
-                udpSenderEnabled,
-                udpCameraId,
-                udpOffsetX,
-                udpOffsetY,
-                udpOffsetZ,
-                udpOffsetRoll,
-                udpOffsetPitch,
-                udpOffsetYaw);
+                whacknetSenderEnabled,
+                whacknetRioPort,
+                whacknetCameraId,
+                whacknetOffsetX,
+                whacknetOffsetY,
+                whacknetOffsetZ,
+                whacknetOffsetRoll,
+                whacknetOffsetPitch,
+                whacknetOffsetYaw);
     }
 }

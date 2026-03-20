@@ -87,14 +87,15 @@ export interface PipelineSettings {
 
   blockForFrames: boolean;
 
-  udpSenderEnabled: boolean;
-  udpCameraId: number;
-  udpOffsetX: number;
-  udpOffsetY: number;
-  udpOffsetZ: number;
-  udpOffsetRoll: number;
-  udpOffsetPitch: number;
-  udpOffsetYaw: number;
+  whacknetSenderEnabled: boolean;
+  whacknetRioPort: number;
+  whacknetCameraId: number;
+  whacknetOffsetX: number;
+  whacknetOffsetY: number;
+  whacknetOffsetZ: number;
+  whacknetOffsetRoll: number;
+  whacknetOffsetPitch: number;
+  whacknetOffsetYaw: number;
 }
 export type ConfigurablePipelineSettings = Partial<
   Omit<
@@ -163,14 +164,15 @@ export const DefaultPipelineSettings: Omit<
   cameraMaxExposureRaw: 2,
   blockForFrames: true,
 
-  udpSenderEnabled: false,
-  udpCameraId: 0,
-  udpOffsetX: 0.0,
-  udpOffsetY: 0.0,
-  udpOffsetZ: 0.0,
-  udpOffsetRoll: 0.0,
-  udpOffsetPitch: 0.0,
-  udpOffsetYaw: 0.0
+  whacknetSenderEnabled: false,
+  whacknetRioPort: 7001,
+  whacknetCameraId: 0,
+  whacknetOffsetX: 0.0,
+  whacknetOffsetY: 0.0,
+  whacknetOffsetZ: 0.0,
+  whacknetOffsetRoll: 0.0,
+  whacknetOffsetPitch: 0.0,
+  whacknetOffsetYaw: 0.0
 };
 
 export interface ReflectivePipelineSettings extends PipelineSettings {
