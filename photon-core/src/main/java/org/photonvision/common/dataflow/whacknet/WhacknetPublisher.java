@@ -145,7 +145,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         while(buf.hasRemaining()) buf.put((byte) 0);
         buf.flip();
 
-        sendPacket(settings.whacknetRioPort);
+        sendPacket();
     }
 
     private void updateTagCache() {
@@ -195,9 +195,10 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
                 && (distance < SINGLE_TAG_POSE_CUTOFF_METERS);
     }
 
-    private void sendPacket(int port) {
+    private void sendPacket() {
         try {
             String ip = ConfigManager.getInstance().getConfig().getNetworkConfig().ntServerAddress;
+            int port = ConfigManager.getInstance().getConfig().getNetworkConfig().whacknetRioPort;
             if (ip == null || ip.isEmpty() || "0".equals(ip)) {
                 ip = "127.0.0.1";
             }

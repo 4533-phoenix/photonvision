@@ -88,7 +88,6 @@ export interface PipelineSettings {
   blockForFrames: boolean;
 
   whacknetSenderEnabled: boolean;
-  whacknetRioPort: number;
   whacknetCameraId: number;
   whacknetOffsetX: number;
   whacknetOffsetY: number;
@@ -165,7 +164,6 @@ export const DefaultPipelineSettings: Omit<
   blockForFrames: true,
 
   whacknetSenderEnabled: false,
-  whacknetRioPort: 7001,
   whacknetCameraId: 0,
   whacknetOffsetX: 0.0,
   whacknetOffsetY: 0.0,

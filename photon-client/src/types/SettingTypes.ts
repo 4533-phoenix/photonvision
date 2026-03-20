@@ -68,6 +68,9 @@ export interface NetworkSettings {
   setDHCPcommand?: string;
   networkInterfaceNames: NetworkInterfaceType[];
   networkingDisabled: boolean;
+  whacknetGyroEnable: boolean;
+  whacknetGyroPort: number;
+  whacknetRioPort: number;
 }
 
 export type ConfigurableNetworkSettings = Omit<

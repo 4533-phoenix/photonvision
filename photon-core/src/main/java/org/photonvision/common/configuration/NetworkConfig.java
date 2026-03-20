@@ -33,6 +33,9 @@ public class NetworkConfig {
     public boolean runNTServer = false;
     public boolean shouldManage;
     public boolean shouldPublishProto = false;
+    public boolean whacknetGyroEnable = false;
+    public int whacknetGyroPort = 7002;
+    public int whacknetRioPort = 7001;
 
     @JsonIgnore public static final String NM_IFACE_STRING = "${interface}";
     @JsonIgnore public static final String NM_IP_STRING = "${ipaddr}";
@@ -62,7 +65,10 @@ public class NetworkConfig {
             @JsonProperty("shouldPublishProto") boolean shouldPublishProto,
             @JsonProperty("networkManagerIface") String networkManagerIface,
             @JsonProperty("setStaticCommand") String setStaticCommand,
-            @JsonProperty("setDHCPcommand") String setDHCPcommand) {
+            @JsonProperty("setDHCPcommand") String setDHCPcommand,
+            @JsonProperty("whacknetGyroEnable") boolean whacknetGyroEnable,
+            @JsonProperty("whacknetGyroPort") int whacknetGyroPort,
+            @JsonProperty("whacknetRioPort") int whacknetRioPort) {
         this.ntServerAddress = ntServerAddress;
         this.connectionType = connectionType;
         this.staticIp = staticIp;
@@ -72,6 +78,9 @@ public class NetworkConfig {
         this.networkManagerIface = networkManagerIface;
         this.setStaticCommand = setStaticCommand;
         this.setDHCPcommand = setDHCPcommand;
+        this.whacknetGyroEnable = whacknetGyroEnable;
+        this.whacknetGyroPort = whacknetGyroPort;
+        this.whacknetRioPort = whacknetRioPort;
         setShouldManage(shouldManage);
     }
 
@@ -86,7 +95,10 @@ public class NetworkConfig {
                 config.shouldPublishProto,
                 config.networkManagerIface,
                 config.setStaticCommand,
-                config.setDHCPcommand);
+                config.setDHCPcommand,
+                config.whacknetGyroEnable,
+                config.whacknetGyroPort,
+                config.whacknetRioPort);
     }
 
     @JsonIgnore
@@ -130,6 +142,12 @@ public class NetworkConfig {
                 + shouldManage
                 + ", shouldPublishProto="
                 + shouldPublishProto
+                + ", whacknetGyroEnable="
+                + whacknetGyroEnable
+                + ", whacknetGyroPort="
+                + whacknetGyroPort
+                + ", whacknetRioPort="
+                + whacknetRioPort
                 + "]";
     }
 }

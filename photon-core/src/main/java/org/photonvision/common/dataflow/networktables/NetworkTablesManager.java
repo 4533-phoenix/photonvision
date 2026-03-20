@@ -40,6 +40,7 @@ import org.photonvision.common.configuration.NetworkConfig;
 import org.photonvision.common.dataflow.DataChangeService;
 import org.photonvision.common.dataflow.events.OutgoingUIEvent;
 import org.photonvision.common.dataflow.websocket.UIPhotonConfiguration;
+import org.photonvision.common.dataflow.whacknet.WhacknetReceiver;
 import org.photonvision.common.hardware.HardwareManager;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.LogLevel;
@@ -342,6 +343,12 @@ public class NetworkTablesManager {
             setServerMode();
         } else {
             setClientMode(config);
+        }
+
+        if (config.whacknetGyroEnable) {
+            WhacknetReceiver.getInstance().start(config.whacknetGyroPort);
+        } else {
+            WhacknetReceiver.getInstance().stop();
         }
 
         m_timeSync.setConfig(config);

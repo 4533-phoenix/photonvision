@@ -268,29 +268,6 @@ const interactiveCols = computed(() =>
             </v-col>
           </v-row>
 
-          <v-row class="mb-2">
-            <v-col cols="12" sm="6">
-              <v-text-field
-                v-model.number="currentPipelineSettings.whacknetRioPort"
-                label="Rio Port"
-                type="number"
-                density="compact"
-                variant="underlined"
-                hide-details
-                color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetRioPort: parseFloat(val as string) || 0 }, false)"
-              >
-                <template #prepend>
-                  <v-tooltip location="top" text="The port number for the Rio connection.">
-                    <template #activator="{ props }">
-                      <v-icon v-bind="props" size="small" color="primary">mdi-information</v-icon>
-                    </template>
-                  </v-tooltip>
-                </template>
-              </v-text-field>
-            </v-col>
-          </v-row>
-
           <div class="text-subtitle-1 mt-4 text-white">Robot to Camera Offset</div>
           
           <!-- Translation Row -->

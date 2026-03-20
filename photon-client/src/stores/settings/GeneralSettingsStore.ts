@@ -94,7 +94,10 @@ export const useSettingsStore = defineStore("settings", {
           devName: "eth0"
         }
       ],
-      networkingDisabled: false
+      networkingDisabled: false,
+      whacknetGyroEnable: false,
+      whacknetGyroPort: 7002,
+      whacknetRioPort: 7001
     },
     lighting: {
       supported: true,

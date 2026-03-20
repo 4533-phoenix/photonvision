@@ -5,6 +5,7 @@ import PvInput from "@/components/common/pv-input.vue";
 import PvRadio from "@/components/common/pv-radio.vue";
 import PvSwitch from "@/components/common/pv-switch.vue";
 import PvSelect from "@/components/common/pv-select.vue";
+import PvNumberInput from "@/components/common/pv-number-input.vue"; 
 import { type ConfigurableNetworkSettings, NetworkConnectionType } from "@/types/SettingTypes";
 import { useStateStore } from "@/stores/StateStore";
 import { useTheme } from "vuetify";
@@ -77,7 +78,10 @@ const settingsHaveChanged = (): boolean => {
     a.shouldPublishProto !== b.shouldPublishProto ||
     a.networkManagerIface !== b.networkManagerIface ||
     a.setStaticCommand !== b.setStaticCommand ||
-    a.setDHCPcommand !== b.setDHCPcommand
+    a.setDHCPcommand !== b.setDHCPcommand ||
+    a.whacknetGyroEnable !== b.whacknetGyroEnable ||
+    a.whacknetGyroPort !== b.whacknetGyroPort ||
+    a.whacknetRioPort !== b.whacknetRioPort
   );
 };
 
@@ -93,7 +97,10 @@ const saveGeneralSettings = async () => {
     setStaticCommand: tempSettingsStruct.value.setStaticCommand || "",
     shouldManage: tempSettingsStruct.value.shouldManage,
     shouldPublishProto: tempSettingsStruct.value.shouldPublishProto,
-    staticIp: tempSettingsStruct.value.staticIp
+    staticIp: tempSettingsStruct.value.staticIp,
+    whacknetGyroEnable: tempSettingsStruct.value.whacknetGyroEnable,
+    whacknetGyroPort: tempSettingsStruct.value.whacknetGyroPort,
+    whacknetRioPort: tempSettingsStruct.value.whacknetRioPort
   };
 
   const changingStaticIP =
@@ -309,6 +316,26 @@ watchEffect(() => {
           text="This mode is intended for debugging and may reduce performance; it should be off for field use."
           icon="mdi-information-outline"
           :variant="theme.global.name.value === 'LightTheme' ? 'elevated' : 'tonal'"
+        />
+        <v-card-title class="pl-0 pt-3 pb-10px">Whacknet Config</v-card-title>
+        <pv-switch
+          v-model="tempSettingsStruct.whacknetGyroEnable"
+          label="Enable Gyro Receiver"
+          tooltip="If enabled, the coprocessor will listen for high-frequency UDP gyro packets from the roboRIO for assisted vision solvePnP."
+          :label-cols="4"
+        />
+        <pv-number-input
+          v-model="tempSettingsStruct.whacknetGyroPort"
+          label="Gyro Receiver Port"
+          tooltip="The UDP port to listen for robot telemetry on."
+          :disabled="!tempSettingsStruct.whacknetGyroEnable"
+          :label-cols="4"
+        />
+        <pv-number-input
+          v-model="tempSettingsStruct.whacknetRioPort"
+          label="Rio Port"
+          tooltip="The port number for the Rio connection."
+          :label-cols="4"
         />
       </v-form>
       <v-btn
