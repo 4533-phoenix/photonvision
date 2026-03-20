@@ -127,9 +127,7 @@ public class WhacknetReceiver {
 
                 // Translate the timestamp to the local clock
                 long ntOffset = NetworkTablesManager.getInstance().getOffset();
-                long localTranslatedTimestamp = rioTimestamp + ntOffset;
-
-                System.out.println("Received Whacknet packet: " + rioTimestamp + ", " + localTranslatedTimestamp + ", " + heading + ", " + velocity);
+                long localTranslatedTimestamp = rioTimestamp - ntOffset;
 
                 latestState.set(new GyroState(
                     rioTimestamp,
