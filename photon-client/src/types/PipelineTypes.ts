@@ -95,6 +95,9 @@ export interface PipelineSettings {
   whacknetOffsetRoll: number;
   whacknetOffsetPitch: number;
   whacknetOffsetYaw: number;
+
+  useGyroConstraint: boolean;
+  gyroWeight: number;
 }
 export type ConfigurablePipelineSettings = Partial<
   Omit<
@@ -170,7 +173,10 @@ export const DefaultPipelineSettings: Omit<
   whacknetOffsetZ: 0.0,
   whacknetOffsetRoll: 0.0,
   whacknetOffsetPitch: 0.0,
-  whacknetOffsetYaw: 0.0
+  whacknetOffsetYaw: 0.0,
+
+  useGyroConstraint: false,
+  gyroWeight: 0.5
 };
 
 export interface ReflectivePipelineSettings extends PipelineSettings {

@@ -17,6 +17,7 @@
 
 package org.photonvision.vision.pipeline;
 
+import org.photonvision.common.dataflow.whacknet.WhacknetReceiver.InterpolatedGyroState;
 import org.photonvision.vision.camera.QuirkyCamera;
 import org.photonvision.vision.frame.Frame;
 import org.photonvision.vision.frame.FrameStaticProperties;
@@ -31,6 +32,7 @@ public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelin
     protected QuirkyCamera cameraQuirks;
 
     private final FrameThresholdType thresholdType;
+    protected InterpolatedGyroState lastGyroContext = null;
 
     // So releaseable doesn't keep track of if we double-free something. so (ew) remember that here
     protected volatile boolean released = false;
@@ -62,6 +64,10 @@ public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelin
 
     public void setSettings(S s) {
         this.settings = s;
+    }
+
+    public void setGyroContext(InterpolatedGyroState gyroState) {
+        this.lastGyroContext = gyroState;
     }
 
     public R run(Frame frame, QuirkyCamera cameraQuirks) {

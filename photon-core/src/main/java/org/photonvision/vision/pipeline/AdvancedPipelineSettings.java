@@ -100,6 +100,10 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
     public double whacknetOffsetRoll = 0.0;
     public double whacknetOffsetPitch = 0.0;
     public double whacknetOffsetYaw = 0.0;
+
+    public boolean useGyroConstraint = false;
+    public double gyroWeight = 0.5;
+    
     /**
      * Handles backward compatibility for the deprecated outputShowMultipleTargets property. When
      * outputShowMultipleTargets is encountered during deserialization, it sets outputMaximumTargets
@@ -159,7 +163,9 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
                 && Double.compare(that.whacknetOffsetZ, whacknetOffsetZ) == 0
                 && Double.compare(that.whacknetOffsetRoll, whacknetOffsetRoll) == 0
                 && Double.compare(that.whacknetOffsetPitch, whacknetOffsetPitch) == 0
-                && Double.compare(that.whacknetOffsetYaw, whacknetOffsetYaw) == 0;
+                && Double.compare(that.whacknetOffsetYaw, whacknetOffsetYaw) == 0
+                && useGyroConstraint == that.useGyroConstraint
+                && Double.compare(that.gyroWeight, gyroWeight) == 0;
     }
 
     @Override
@@ -202,6 +208,8 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
                 whacknetOffsetZ,
                 whacknetOffsetRoll,
                 whacknetOffsetPitch,
-                whacknetOffsetYaw);
+                whacknetOffsetYaw,
+                useGyroConstraint,
+                gyroWeight);
     }
 }

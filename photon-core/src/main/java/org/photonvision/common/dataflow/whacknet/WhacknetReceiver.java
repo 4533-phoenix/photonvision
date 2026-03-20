@@ -20,8 +20,10 @@ package org.photonvision.common.dataflow.whacknet;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.photonvision.common.dataflow.networktables.NetworkTablesManager;
 import org.photonvision.common.logging.LogGroup;
@@ -34,8 +36,10 @@ import org.photonvision.common.logging.Logger;
  */
 public class WhacknetReceiver {
     private static final Logger logger = new Logger(WhacknetReceiver.class, LogGroup.NetworkTables);
+    private final TreeMap<Long, GyroState> history = new TreeMap<>();
     private static final int PACKET_SIZE = 24;
     private static final long STALE_TIMEOUT_MS = 100;
+    private static final long HISTORY_WINDOW_MICROS = 1_000_000; // 1 second
 
     private static class SingletonHolder {
         private static final WhacknetReceiver INSTANCE = new WhacknetReceiver();
@@ -59,6 +63,14 @@ public class WhacknetReceiver {
             return (System.currentTimeMillis() - receiveTimeMillis) > STALE_TIMEOUT_MS;
         }
     }
+
+    /**
+     * Represents the interpolated gyro position at a specific point in time.
+     */
+    public static record InterpolatedGyroState(
+            long localTimestampMicros,
+            double headingRadians
+    ) {}
 
     private final AtomicReference<GyroState> latestState = new AtomicReference<>(null);
     private Thread receiveThread;
@@ -129,17 +141,20 @@ public class WhacknetReceiver {
                 long ntOffset = NetworkTablesManager.getInstance().getOffset();
                 long localTranslatedTimestamp = rioTimestamp - ntOffset;
 
-                latestState.set(new GyroState(
-                    rioTimestamp,
-                    localTranslatedTimestamp,
-                    heading,
-                    velocity,
-                    System.currentTimeMillis()
-                ));
+                // Create the gyro state
+                var state = new GyroState(rioTimestamp, localTranslatedTimestamp, heading, velocity, System.currentTimeMillis());
 
+                synchronized(history) {
+                    history.put(localTranslatedTimestamp, state);
+                    long threshold = localTranslatedTimestamp - HISTORY_WINDOW_MICROS;
+                    while (!history.isEmpty() && history.firstKey() < threshold) {
+                        history.pollFirstEntry();
+                    }
+                }
+                latestState.set(state);
             } catch (Exception e) {
                 // Silently handle timeouts to loop back and check 'running'
-                if (!(e instanceof java.net.SocketTimeoutException)) {
+                if (!(e instanceof SocketTimeoutException)) {
                     if (running) logger.error("Whacknet receive error: " + e.getMessage());
                 }
             }
@@ -157,5 +172,41 @@ public class WhacknetReceiver {
             return null;
         }
         return state;
+    }
+
+    /**
+    * Finds the interpolated gyro state at a specific local timestamp.
+    * @return The interpolated GyroState, or null if no data is available.
+    */
+    public InterpolatedGyroState getInterpolatedState(long localMicros) {
+        synchronized(history) {
+            var lowEntry = history.floorEntry(localMicros);
+            var highEntry = history.ceilingEntry(localMicros);
+
+            if (lowEntry == null || highEntry == null) return null;
+            
+            long lowKey = lowEntry.getKey();
+            long highKey = highEntry.getKey();
+            
+            if (lowKey == highKey) {
+                return new InterpolatedGyroState(localMicros, lowEntry.getValue().headingRadians());
+            }
+
+            double lowHeading = lowEntry.getValue().headingRadians();
+            double highHeading = highEntry.getValue().headingRadians();
+
+            double diff = highHeading - lowHeading;
+
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+
+            double t = (double) (localMicros - lowKey) / (highKey - lowKey);
+            double interpolatedHeading = lowHeading + (t * diff);
+
+            while (interpolatedHeading > Math.PI) interpolatedHeading -= 2 * Math.PI;
+            while (interpolatedHeading < -Math.PI) interpolatedHeading += 2 * Math.PI;
+
+            return new InterpolatedGyroState(localMicros, interpolatedHeading);
+        }
     }
 }

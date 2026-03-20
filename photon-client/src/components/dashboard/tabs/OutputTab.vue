@@ -244,7 +244,6 @@ const interactiveCols = computed(() =>
       <v-expand-transition>
         <div v-if="currentPipelineSettings.whacknetSenderEnabled" class="px-2 pb-4">
           
-          <!-- Camera ID -->
           <v-row class="mb-2">
             <v-col cols="12" sm="6">
               <v-text-field
@@ -270,7 +269,6 @@ const interactiveCols = computed(() =>
 
           <div class="text-subtitle-1 mt-4 text-white">Robot to Camera Offset</div>
           
-          <!-- Translation Row -->
           <div class="text-caption text-medium-emphasis mb-1">Translation (Meters)</div>
           <v-row dense class="mb-2">
             <v-col cols="4">
@@ -314,7 +312,6 @@ const interactiveCols = computed(() =>
             </v-col>
           </v-row>
 
-          <!-- Rotation Row -->
           <div class="text-caption text-medium-emphasis mt-2 mb-1">Rotation (Degrees)</div>
           <v-row dense>
             <v-col cols="4">
@@ -358,6 +355,46 @@ const interactiveCols = computed(() =>
             </v-col>
           </v-row>
 
+        </div>
+      </v-expand-transition>
+
+      <v-divider class="my-4" />
+      <v-card-title class="pl-0 pt-3 pb-10px">Gyro Constraint</v-card-title>
+
+      <pv-switch
+        v-model="currentPipelineSettings.useGyroConstraint"
+        label="Use Gyro Constraint"
+        tooltip="Enable to weight pose estimation against robot gyro data."
+        :switch-cols="interactiveCols"
+        @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ useGyroConstraint: val }, false)"
+      />
+
+      <v-expand-transition>
+        <div v-if="currentPipelineSettings.useGyroConstraint" class="px-2 pb-4">
+          <div class="text-subtitle-1 mt-4 text-white">Constraint Parameters</div>
+          <v-row dense class="mt-2">
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model.number="currentPipelineSettings.gyroWeight"
+                label="Gyro Weight"
+                type="number"
+                step="0.01"
+                density="compact"
+                variant="underlined"
+                hide-details
+                color="primary"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ gyroWeight: parseFloat(val as string) || 0 }, false)"
+              >
+                <template #prepend>
+                  <v-tooltip location="top" text="The influence of the gyro on the final pose (0.0 to 1.0).">
+                    <template #activator="{ props }">
+                      <v-icon v-bind="props" size="small" color="primary">mdi-information</v-icon>
+                    </template>
+                  </v-tooltip>
+                </template>
+              </v-text-field>
+            </v-col>
+          </v-row>
         </div>
       </v-expand-transition>
     </div>
