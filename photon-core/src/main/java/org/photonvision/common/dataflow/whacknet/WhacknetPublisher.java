@@ -133,11 +133,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         buf.putDouble(stdDevs[0]);
         buf.putDouble(stdDevs[1]);
         buf.putDouble(stdDevs[2]);
-
-        long nowNanos = MathUtils.wpiNanoTime();
-        long captureNanos = result.getImageCaptureTimestampNanos();
-        long pipelineDelayMicros = (nowNanos - captureNanos) / 1000;
-        buf.putLong(pipelineDelayMicros);
+        buf.putLong(result.getImageCaptureTimestampNanos());
 
         buf.put((byte) settings.whacknetCameraId);
         buf.put((byte) usedTagCount);
