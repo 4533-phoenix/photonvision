@@ -36,7 +36,7 @@ import org.photonvision.common.logging.Logger;
 public class WhacknetReceiver {
     private static final Logger logger = new Logger(WhacknetReceiver.class, LogGroup.NetworkTables);
     private final TreeMap<Long, GyroState> history = new TreeMap<>();
-    private static final int PACKET_SIZE = 24;
+    private static final int PACKET_SIZE = 64;
     private static final long STALE_TIMEOUT_MS = 100;
     private static final long HISTORY_WINDOW_MICROS = 1_000_000; // 1 second
 
@@ -52,8 +52,12 @@ public class WhacknetReceiver {
     public static record GyroState(
             long rioTimestampMicros,
             long localTimestampMicros,
-            double headingRadians,
-            double velocityRadPerSec,
+            double rollRadians,
+            double pitchRadians,
+            double yawRadians,
+            double rollVelocityRadPerSec,
+            double pitchVelocityRadPerSec,
+            double yawVelocityRadPerSec,
             long receiveTimeMillis) {
 
         public boolean isStale() {
@@ -62,7 +66,7 @@ public class WhacknetReceiver {
     }
 
     /** Represents the interpolated gyro position at a specific point in time. */
-    public static record InterpolatedGyroState(long localTimestampMicros, double headingRadians) {}
+    public static record InterpolatedGyroState(long localTimestampMicros, double rollRadians, double pitchRadians, double yawRadians) {}
 
     private final AtomicReference<GyroState> latestState = new AtomicReference<>(null);
     private Thread receiveThread;
@@ -122,8 +126,12 @@ public class WhacknetReceiver {
 
                 bb.rewind();
                 long rioTimestamp = bb.getLong();
-                double heading = bb.getDouble();
-                double velocity = bb.getDouble();
+                double roll = bb.getDouble();
+                double pitch = bb.getDouble();
+                double yaw = bb.getDouble();
+                double rollVelocity = bb.getDouble();
+                double pitchVelocity = bb.getDouble();
+                double yawVelocity = bb.getDouble();
 
                 // Translate the timestamp to the local clock
                 long ntOffset = NetworkTablesManager.getInstance().getOffset();
@@ -134,8 +142,12 @@ public class WhacknetReceiver {
                         new GyroState(
                                 rioTimestamp,
                                 localTranslatedTimestamp,
-                                heading,
-                                velocity,
+                                roll,
+                                pitch,
+                                yaw,
+                                rollVelocity,
+                                pitchVelocity,
+                                yawVelocity,
                                 System.currentTimeMillis());
 
                 synchronized (history) {
@@ -169,6 +181,30 @@ public class WhacknetReceiver {
         return state;
     }
 
+    private double getInterpolatedValue(double h0, double v0, double h1, double v1, double t, double deltaTime){
+        // Ensure we interpolate across the shortest path
+
+        double diff = h1 - h0;
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+        h1 = h0 + diff;
+
+        // Cubic Hermite Spline basis functions
+        double t2 = t * t;
+        double t3 = t2 * t;
+
+        double h_00 = 2 * t3 - 3 * t2 + 1;
+        double h_10 = t3 - 2 * t2 + t;
+        double h_01 = -2 * t3 + 3 * t2;
+        double h_11 = t3 - t2;
+
+        // Resulting heading
+        double interpolatedHeading =
+                (h_00 * h0) + (h_10 * v0 * deltaTime) + (h_01 * h1) + (h_11 * v1 * deltaTime);
+        
+        return interpolatedHeading;
+    }
+
     /**
      * Finds the interpolated gyro state at a specific local timestamp.
      *
@@ -181,55 +217,25 @@ public class WhacknetReceiver {
             var lowEntry = history.floorEntry(localMicros);
             var highEntry = history.ceilingEntry(localMicros);
 
-            if (lowEntry == null) {
-                return null;
-            }
-
             long t0 = lowEntry.getKey();
             GyroState s0 = lowEntry.getValue();
-
-            // We project the heading forward using the last known velocity.
-            if (highEntry == null || highEntry.getKey() == t0) {
-                double dtSeconds = (localMicros - t0) / 1_000_000.0;
-
-                if (dtSeconds > 0.5) return null;
-
-                double extrapolatedHeading = s0.headingRadians() + (s0.velocityRadPerSec() * dtSeconds);
-                return new InterpolatedGyroState(localMicros, normalizeAngle(extrapolatedHeading));
-            }
 
             // Full Interpolation where we have floor and ceiling
             long t1 = highEntry.getKey();
             GyroState s1 = highEntry.getValue();
 
+            if (lowEntry == null || highEntry == null || highEntry.getKey() == t0) {
+                return null;
+            }
+
             double deltaTime = (t1 - t0) / 1_000_000.0;
             double t = (double) (localMicros - t0) / (t1 - t0);
 
-            double h0 = s0.headingRadians();
-            double v0 = s0.velocityRadPerSec();
-            double h1 = s1.headingRadians();
-            double v1 = s1.velocityRadPerSec();
+            double interpolatedRoll = getInterpolatedValue(s0.rollRadians(), s0.rollVelocityRadPerSec(), s1.rollRadians(), s1.rollVelocityRadPerSec(), t, deltaTime);
+            double interpolatedPitch = getInterpolatedValue(s0.pitchRadians(), s0.pitchVelocityRadPerSec(), s1.rollRadians(), s1.pitchVelocityRadPerSec(), t, deltaTime);
+            double interpolatedYaw = getInterpolatedValue(s0.yawRadians(), s0.yawVelocityRadPerSec(), s1.yawRadians(), s1.yawVelocityRadPerSec(), t, deltaTime);
 
-            // Ensure we interpolate across the shortest path
-            double diff = h1 - h0;
-            while (diff > Math.PI) diff -= 2 * Math.PI;
-            while (diff < -Math.PI) diff += 2 * Math.PI;
-            h1 = h0 + diff;
-
-            // Cubic Hermite Spline basis functions
-            double t2 = t * t;
-            double t3 = t2 * t;
-
-            double h_00 = 2 * t3 - 3 * t2 + 1;
-            double h_10 = t3 - 2 * t2 + t;
-            double h_01 = -2 * t3 + 3 * t2;
-            double h_11 = t3 - t2;
-
-            // Resulting heading
-            double interpolatedHeading =
-                    (h_00 * h0) + (h_10 * v0 * deltaTime) + (h_01 * h1) + (h_11 * v1 * deltaTime);
-
-            return new InterpolatedGyroState(localMicros, normalizeAngle(interpolatedHeading));
+            return new InterpolatedGyroState(localMicros, normalizeAngle(interpolatedRoll), normalizeAngle(interpolatedPitch), normalizeAngle(interpolatedYaw));
         }
     }
 
