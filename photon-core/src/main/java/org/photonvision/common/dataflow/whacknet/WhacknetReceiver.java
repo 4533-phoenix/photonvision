@@ -66,7 +66,8 @@ public class WhacknetReceiver {
     }
 
     /** Represents the interpolated gyro position at a specific point in time. */
-    public static record InterpolatedGyroState(long localTimestampMicros, double rollRadians, double pitchRadians, double yawRadians) {}
+    public static record InterpolatedGyroState(
+            long localTimestampMicros, double rollRadians, double pitchRadians, double yawRadians) {}
 
     private final AtomicReference<GyroState> latestState = new AtomicReference<>(null);
     private Thread receiveThread;
@@ -181,7 +182,8 @@ public class WhacknetReceiver {
         return state;
     }
 
-    private double getInterpolatedValue(double h0, double v0, double h1, double v1, double t, double deltaTime){
+    private double getInterpolatedValue(
+            double h0, double v0, double h1, double v1, double t, double deltaTime) {
         // Ensure we interpolate across the shortest path
 
         double diff = h1 - h0;
@@ -201,7 +203,7 @@ public class WhacknetReceiver {
         // Resulting heading
         double interpolatedHeading =
                 (h_00 * h0) + (h_10 * v0 * deltaTime) + (h_01 * h1) + (h_11 * v1 * deltaTime);
-        
+
         return interpolatedHeading;
     }
 
@@ -231,11 +233,36 @@ public class WhacknetReceiver {
             double deltaTime = (t1 - t0) / 1_000_000.0;
             double t = (double) (localMicros - t0) / (t1 - t0);
 
-            double interpolatedRoll = getInterpolatedValue(s0.rollRadians(), s0.rollVelocityRadPerSec(), s1.rollRadians(), s1.rollVelocityRadPerSec(), t, deltaTime);
-            double interpolatedPitch = getInterpolatedValue(s0.pitchRadians(), s0.pitchVelocityRadPerSec(), s1.rollRadians(), s1.pitchVelocityRadPerSec(), t, deltaTime);
-            double interpolatedYaw = getInterpolatedValue(s0.yawRadians(), s0.yawVelocityRadPerSec(), s1.yawRadians(), s1.yawVelocityRadPerSec(), t, deltaTime);
+            double interpolatedRoll =
+                    getInterpolatedValue(
+                            s0.rollRadians(),
+                            s0.rollVelocityRadPerSec(),
+                            s1.rollRadians(),
+                            s1.rollVelocityRadPerSec(),
+                            t,
+                            deltaTime);
+            double interpolatedPitch =
+                    getInterpolatedValue(
+                            s0.pitchRadians(),
+                            s0.pitchVelocityRadPerSec(),
+                            s1.rollRadians(),
+                            s1.pitchVelocityRadPerSec(),
+                            t,
+                            deltaTime);
+            double interpolatedYaw =
+                    getInterpolatedValue(
+                            s0.yawRadians(),
+                            s0.yawVelocityRadPerSec(),
+                            s1.yawRadians(),
+                            s1.yawVelocityRadPerSec(),
+                            t,
+                            deltaTime);
 
-            return new InterpolatedGyroState(localMicros, normalizeAngle(interpolatedRoll), normalizeAngle(interpolatedPitch), normalizeAngle(interpolatedYaw));
+            return new InterpolatedGyroState(
+                    localMicros,
+                    normalizeAngle(interpolatedRoll),
+                    normalizeAngle(interpolatedPitch),
+                    normalizeAngle(interpolatedYaw));
         }
     }
 
