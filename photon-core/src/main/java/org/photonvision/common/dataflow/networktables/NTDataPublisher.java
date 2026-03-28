@@ -55,6 +55,9 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
     private final Consumer<Integer> fpsLimitConsumer;
     private final Supplier<Integer> fpsLimitSupplier;
 
+    NTDataChangeListener cameraTransformListener;
+    private final Consumer<edu.wpi.first.math.geometry.Transform3d> cameraTransformConsumer;
+
     public NTDataPublisher(
             String cameraNickname,
             Supplier<Integer> pipelineIndexSupplier,
@@ -62,13 +65,15 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
             BooleanSupplier driverModeSupplier,
             Consumer<Boolean> driverModeConsumer,
             Supplier<Integer> fpsLimitSupplier,
-            Consumer<Integer> fpsLimitConsumer) {
+            Consumer<Integer> fpsLimitConsumer,
+            Consumer<edu.wpi.first.math.geometry.Transform3d> cameraTransformConsumer) {
         this.pipelineIndexSupplier = pipelineIndexSupplier;
         this.pipelineIndexConsumer = pipelineIndexConsumer;
         this.driverModeSupplier = driverModeSupplier;
         this.driverModeConsumer = driverModeConsumer;
         this.fpsLimitSupplier = fpsLimitSupplier;
         this.fpsLimitConsumer = fpsLimitConsumer;
+        this.cameraTransformConsumer = cameraTransformConsumer;
 
         updateCameraNickname(cameraNickname);
         updateEntries();
@@ -124,9 +129,18 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
         logger.debug("Set FPS limit to " + newFPSLimit);
     }
 
+    private void onCameraTransformChange(
+            edu.wpi.first.networktables.NetworkTableEvent entryNotification) {
+        var transform = ts.cameraTransformSubscriber.get();
+        if (transform != null) {
+            cameraTransformConsumer.accept(transform);
+        }
+    }
+
     private void removeEntries() {
         if (pipelineIndexListener != null) pipelineIndexListener.remove();
         if (driverModeListener != null) driverModeListener.remove();
+        if (cameraTransformListener != null) cameraTransformListener.remove();
         ts.removeEntries();
     }
 
@@ -134,20 +148,23 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
         if (pipelineIndexListener != null) pipelineIndexListener.remove();
         if (driverModeListener != null) driverModeListener.remove();
         if (fpsLimitListener != null) fpsLimitListener.remove();
+        if (cameraTransformListener != null) cameraTransformListener.remove();
 
         ts.updateEntries();
 
         pipelineIndexListener =
                 new NTDataChangeListener(
                         ts.subTable.getInstance(), ts.pipelineIndexRequestSub, this::onPipelineIndexChange);
-
         driverModeListener =
                 new NTDataChangeListener(
                         ts.subTable.getInstance(), ts.driverModeSubscriber, this::onDriverModeChange);
-
         fpsLimitListener =
                 new NTDataChangeListener(
                         ts.subTable.getInstance(), ts.fpsLimitSubscriber, this::onFPSLimitChange);
+
+        cameraTransformListener =
+                new NTDataChangeListener(
+                        ts.subTable.getInstance(), ts.cameraTransformSubscriber, this::onCameraTransformChange);
     }
 
     public void updateCameraNickname(String newCameraNickname) {

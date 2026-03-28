@@ -231,6 +231,97 @@ const interactiveCols = computed(() =>
 
     <div v-if="isTagPipeline">
       <v-divider class="my-4" />
+      <v-card-title class="pl-0 pt-3 pb-10px">Robot to Camera Offset</v-card-title>
+      
+      <div class="px-2 pb-4">
+        <div class="text-caption text-medium-emphasis mb-1">Translation (Meters)</div>
+        <v-row dense class="mb-2">
+          <v-col cols="4">
+            <v-text-field
+              v-model.number="currentPipelineSettings.whacknetOffsetX"
+              label="X"
+              type="number"
+              step="0.01"
+              density="compact"
+              variant="underlined"
+              hide-details
+              color="primary"
+              @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetX: parseFloat(val as string) || 0 }, false)"
+            />
+          </v-col>
+          <v-col cols="4">
+            <v-text-field
+              v-model.number="currentPipelineSettings.whacknetOffsetY"
+              label="Y"
+              type="number"
+              step="0.01"
+              density="compact"
+              variant="underlined"
+              hide-details
+              color="primary"
+              @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetY: parseFloat(val as string) || 0 }, false)"
+            />
+          </v-col>
+          <v-col cols="4">
+            <v-text-field
+              v-model.number="currentPipelineSettings.whacknetOffsetZ"
+              label="Z"
+              type="number"
+              step="0.01"
+              density="compact"
+              variant="underlined"
+              hide-details
+              color="primary"
+              @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetZ: parseFloat(val as string) || 0 }, false)"
+            />
+          </v-col>
+        </v-row>
+
+        <div class="text-caption text-medium-emphasis mt-2 mb-1">Rotation (Degrees)</div>
+        <v-row dense>
+          <v-col cols="4">
+            <v-text-field
+              v-model.number="currentPipelineSettings.whacknetOffsetRoll"
+              label="Roll"
+              type="number"
+              step="0.1"
+              density="compact"
+              variant="underlined"
+              hide-details
+              color="primary"
+              @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetRoll: parseFloat(val as string) || 0 }, false)"
+            />
+          </v-col>
+          <v-col cols="4">
+            <v-text-field
+              v-model.number="currentPipelineSettings.whacknetOffsetPitch"
+              label="Pitch"
+              type="number"
+              step="0.1"
+              density="compact"
+              variant="underlined"
+              hide-details
+              color="primary"
+              @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetPitch: parseFloat(val as string) || 0 }, false)"
+            />
+          </v-col>
+          <v-col cols="4">
+            <v-text-field
+              v-model.number="currentPipelineSettings.whacknetOffsetYaw"
+              label="Yaw"
+              type="number"
+              step="0.1"
+              density="compact"
+              variant="underlined"
+              hide-details
+              color="primary"
+              @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetYaw: parseFloat(val as string) || 0 }, false)"
+            />
+          </v-col>
+        </v-row>
+      </div>
+
+      <v-divider class="my-4" />
       <v-card-title class="pl-0 pt-3 pb-10px">Whacknet Vision Sender</v-card-title>
       
       <pv-switch
@@ -243,118 +334,29 @@ const interactiveCols = computed(() =>
       
       <v-expand-transition>
         <div v-if="currentPipelineSettings.whacknetSenderEnabled" class="px-2 pb-4">
-          
           <v-row class="mb-2">
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model.number="currentPipelineSettings.whacknetCameraId"
                 label="Camera ID"
                 type="number"
+                step="1"
                 density="compact"
                 variant="underlined"
                 hide-details
                 color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetCameraId: parseFloat(val as string) || 0 }, false)"
+                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetCameraId: parseInt(val as string, 10) || 0 }, false)"
               >
                 <template #prepend>
                   <v-tooltip location="top" text="The numeric ID assigned to this specific camera.">
                     <template #activator="{ props }">
-                      <v-icon v-bind="props" size="small" color="primary">mdi-information</v-icon>
+                      <v-icon v-bind="props" icon="mdi-help-circle-outline" size="small" class="mr-2" />
                     </template>
                   </v-tooltip>
                 </template>
               </v-text-field>
             </v-col>
           </v-row>
-
-          <div class="text-subtitle-1 mt-4 text-white">Robot to Camera Offset</div>
-          
-          <div class="text-caption text-medium-emphasis mb-1">Translation (Meters)</div>
-          <v-row dense class="mb-2">
-            <v-col cols="4">
-              <v-text-field
-                v-model.number="currentPipelineSettings.whacknetOffsetX"
-                label="X"
-                type="number"
-                step="0.01"
-                density="compact"
-                variant="underlined"
-                hide-details
-                color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetX: parseFloat(val as string) || 0 }, false)"
-              />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field
-                v-model.number="currentPipelineSettings.whacknetOffsetY"
-                label="Y"
-                type="number"
-                step="0.01"
-                density="compact"
-                variant="underlined"
-                hide-details
-                color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetY: parseFloat(val as string) || 0 }, false)"
-              />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field
-                v-model.number="currentPipelineSettings.whacknetOffsetZ"
-                label="Z"
-                type="number"
-                step="0.01"
-                density="compact"
-                variant="underlined"
-                hide-details
-                color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetZ: parseFloat(val as string) || 0 }, false)"
-              />
-            </v-col>
-          </v-row>
-
-          <div class="text-caption text-medium-emphasis mt-2 mb-1">Rotation (Degrees)</div>
-          <v-row dense>
-            <v-col cols="4">
-              <v-text-field
-                v-model.number="currentPipelineSettings.whacknetOffsetRoll"
-                label="Roll"
-                type="number"
-                step="0.1"
-                density="compact"
-                variant="underlined"
-                hide-details
-                color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetRoll: parseFloat(val as string) || 0 }, false)"
-              />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field
-                v-model.number="currentPipelineSettings.whacknetOffsetPitch"
-                label="Pitch"
-                type="number"
-                step="0.1"
-                density="compact"
-                variant="underlined"
-                hide-details
-                color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetPitch: parseFloat(val as string) || 0 }, false)"
-              />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field
-                v-model.number="currentPipelineSettings.whacknetOffsetYaw"
-                label="Yaw"
-                type="number"
-                step="0.1"
-                density="compact"
-                variant="underlined"
-                hide-details
-                color="primary"
-                @update:modelValue="(val) => useCameraSettingsStore().changeCurrentPipelineSetting({ whacknetOffsetYaw: parseFloat(val as string) || 0 }, false)"
-              />
-            </v-col>
-          </v-row>
-
         </div>
       </v-expand-transition>
 

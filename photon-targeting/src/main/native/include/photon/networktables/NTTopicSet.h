@@ -42,9 +42,11 @@ class NTTopicSet {
   nt::IntegerPublisher pipelineIndexPublisher;
   nt::IntegerSubscriber pipelineIndexRequestSub;
 
-  nt::BooleanTopic driverModeEntry;
-  nt::BooleanPublisher driverModePublisher;
-  nt::BooleanSubscriber driverModeSubscriber;
+        nt::BooleanTopic driverModeEntry;
+        nt::BooleanPublisher driverModePublisher;
+        nt::BooleanSubscriber driverModeSubscriber;
+
+        nt::StructSubscriber<frc::Transform3d> cameraTransformSubscriber;
 
   nt::DoublePublisher latencyMillisEntry;
   nt::BooleanPublisher hasTargetEntry;
@@ -80,6 +82,9 @@ class NTTopicSet {
         subTable->GetBooleanTopic("driverModeRequest").Subscribe(0);
 
     driverModeSubscriber.GetTopic().Publish().SetDefault(false);
+
+    cameraTransformSubscriber =
+        subTable->GetStructTopic<frc::Transform3d>("cameraTransformRequest").Subscribe(frc::Transform3d{});
 
     latencyMillisEntry = subTable->GetDoubleTopic("latencyMillis").Publish();
     hasTargetEntry = subTable->GetBooleanTopic("hasTargets").Publish();

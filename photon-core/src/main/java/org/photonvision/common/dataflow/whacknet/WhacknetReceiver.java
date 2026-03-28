@@ -182,87 +182,135 @@ public class WhacknetReceiver {
         return state;
     }
 
-    private double getInterpolatedValue(
-            double h0, double v0, double h1, double v1, double t, double deltaTime) {
-        // Ensure we interpolate across the shortest path
+    private double getQuinticInterpolatedValue(
+            double p0,
+            double v0,
+            double a0,
+            double p1,
+            double v1,
+            double a1,
+            double t,
+            double deltaTime) {
 
-        double diff = h1 - h0;
+        // Ensure we interpolate across the shortest path
+        double diff = p1 - p0;
         while (diff > Math.PI) diff -= 2 * Math.PI;
         while (diff < -Math.PI) diff += 2 * Math.PI;
-        h1 = h0 + diff;
+        p1 = p0 + diff;
 
-        // Cubic Hermite Spline basis functions
+        // Time powers
         double t2 = t * t;
         double t3 = t2 * t;
+        double t4 = t3 * t;
+        double t5 = t4 * t;
 
-        double h_00 = 2 * t3 - 3 * t2 + 1;
-        double h_10 = t3 - 2 * t2 + t;
-        double h_01 = -2 * t3 + 3 * t2;
-        double h_11 = t3 - t2;
+        // Quintic Hermite Basis Functions
+        double h00 = 1 - 10 * t3 + 15 * t4 - 6 * t5;
+        double h10 = t - 6 * t3 + 8 * t4 - 3 * t5;
+        double h20 = 0.5 * t2 - 1.5 * t3 + 1.5 * t4 - 0.5 * t5;
 
-        // Resulting heading
-        double interpolatedHeading =
-                (h_00 * h0) + (h_10 * v0 * deltaTime) + (h_01 * h1) + (h_11 * v1 * deltaTime);
+        double h01 = 10 * t3 - 15 * t4 + 6 * t5;
+        double h11 = -4 * t3 + 7 * t4 - 3 * t5;
+        double h21 = 0.5 * t3 - t4 + 0.5 * t5;
 
-        return interpolatedHeading;
+        double dt2 = deltaTime * deltaTime;
+
+        return (h00 * p0)
+                + (h10 * v0 * deltaTime)
+                + (h20 * a0 * dt2)
+                + (h01 * p1)
+                + (h11 * v1 * deltaTime)
+                + (h21 * a1 * dt2);
     }
 
-    /**
-     * Finds the interpolated gyro state at a specific local timestamp.
-     *
-     * @return The interpolated GyroState, or null if no data is available.
-     */
     public InterpolatedGyroState getInterpolatedState(long localMicros) {
         synchronized (history) {
             if (history.isEmpty()) return null;
 
-            var lowEntry = history.floorEntry(localMicros);
-            var highEntry = history.ceilingEntry(localMicros);
+            var entry0 = history.floorEntry(localMicros);
+            var entry1 = history.ceilingEntry(localMicros);
 
-            long t0 = lowEntry.getKey();
-            GyroState s0 = lowEntry.getValue();
-
-            // Full Interpolation where we have floor and ceiling
-            long t1 = highEntry.getKey();
-            GyroState s1 = highEntry.getValue();
-
-            if (lowEntry == null || highEntry == null || highEntry.getKey() == t0) {
+            if (entry0 == null || entry1 == null || entry0.getKey().equals(entry1.getKey())) {
                 return null;
             }
+
+            long t0 = entry0.getKey();
+            long t1 = entry1.getKey();
+            GyroState s0 = entry0.getValue();
+            GyroState s1 = entry1.getValue();
 
             double deltaTime = (t1 - t0) / 1_000_000.0;
             double t = (double) (localMicros - t0) / (t1 - t0);
 
-            double interpolatedRoll =
-                    getInterpolatedValue(
-                            s0.rollRadians(),
-                            s0.rollVelocityRadPerSec(),
-                            s1.rollRadians(),
-                            s1.rollVelocityRadPerSec(),
-                            t,
-                            deltaTime);
-            double interpolatedPitch =
-                    getInterpolatedValue(
-                            s0.pitchRadians(),
-                            s0.pitchVelocityRadPerSec(),
-                            s1.rollRadians(),
-                            s1.pitchVelocityRadPerSec(),
-                            t,
-                            deltaTime);
-            double interpolatedYaw =
-                    getInterpolatedValue(
-                            s0.yawRadians(),
-                            s0.yawVelocityRadPerSec(),
-                            s1.yawRadians(),
-                            s1.yawVelocityRadPerSec(),
-                            t,
-                            deltaTime);
+            // Fetch outer points if they exist
+            var entryMinus1 = history.lowerEntry(t0);
+            var entry2 = history.higherEntry(t1);
 
+            // Calculate Accelerations at t0
+            double rollAcc0, pitchAcc0, yawAcc0;
+            if (entryMinus1 != null) {
+                // Central Difference
+                double dtMinus1to1 = (t1 - entryMinus1.getKey()) / 1_000_000.0;
+                GyroState sMinus1 = entryMinus1.getValue();
+                rollAcc0 = (s1.rollVelocityRadPerSec() - sMinus1.rollVelocityRadPerSec()) / dtMinus1to1;
+                pitchAcc0 = (s1.pitchVelocityRadPerSec() - sMinus1.pitchVelocityRadPerSec()) / dtMinus1to1;
+                yawAcc0 = (s1.yawVelocityRadPerSec() - sMinus1.yawVelocityRadPerSec()) / dtMinus1to1;
+            } else {
+                // Forward Difference
+                rollAcc0 = (s1.rollVelocityRadPerSec() - s0.rollVelocityRadPerSec()) / deltaTime;
+                pitchAcc0 = (s1.pitchVelocityRadPerSec() - s0.pitchVelocityRadPerSec()) / deltaTime;
+                yawAcc0 = (s1.yawVelocityRadPerSec() - s0.yawVelocityRadPerSec()) / deltaTime;
+            }
+
+            // Calculate Accelerations at t1
+            double rollAcc1, pitchAcc1, yawAcc1;
+            if (entry2 != null) {
+                // Central Difference
+                double dt0to2 = (entry2.getKey() - t0) / 1_000_000.0;
+                GyroState s2 = entry2.getValue();
+                rollAcc1 = (s2.rollVelocityRadPerSec() - s0.rollVelocityRadPerSec()) / dt0to2;
+                pitchAcc1 = (s2.pitchVelocityRadPerSec() - s0.pitchVelocityRadPerSec()) / dt0to2;
+                yawAcc1 = (s2.yawVelocityRadPerSec() - s0.yawVelocityRadPerSec()) / dt0to2;
+            } else {
+                // Backward Difference
+                rollAcc1 = (s1.rollVelocityRadPerSec() - s0.rollVelocityRadPerSec()) / deltaTime;
+                pitchAcc1 = (s1.pitchVelocityRadPerSec() - s0.pitchVelocityRadPerSec()) / deltaTime;
+                yawAcc1 = (s1.yawVelocityRadPerSec() - s0.yawVelocityRadPerSec()) / deltaTime;
+            }
+
+            // ALWAYS use Quintic Hermite! It dynamically adapts its accuracy.
             return new InterpolatedGyroState(
                     localMicros,
-                    normalizeAngle(interpolatedRoll),
-                    normalizeAngle(interpolatedPitch),
-                    normalizeAngle(interpolatedYaw));
+                    normalizeAngle(
+                            getQuinticInterpolatedValue(
+                                    s0.rollRadians(),
+                                    s0.rollVelocityRadPerSec(),
+                                    rollAcc0,
+                                    s1.rollRadians(),
+                                    s1.rollVelocityRadPerSec(),
+                                    rollAcc1,
+                                    t,
+                                    deltaTime)),
+                    normalizeAngle(
+                            getQuinticInterpolatedValue(
+                                    s0.pitchRadians(),
+                                    s0.pitchVelocityRadPerSec(),
+                                    pitchAcc0,
+                                    s1.pitchRadians(),
+                                    s1.pitchVelocityRadPerSec(),
+                                    pitchAcc1,
+                                    t,
+                                    deltaTime)),
+                    normalizeAngle(
+                            getQuinticInterpolatedValue(
+                                    s0.yawRadians(),
+                                    s0.yawVelocityRadPerSec(),
+                                    yawAcc0,
+                                    s1.yawRadians(),
+                                    s1.yawVelocityRadPerSec(),
+                                    yawAcc1,
+                                    t,
+                                    deltaTime)));
         }
     }
 

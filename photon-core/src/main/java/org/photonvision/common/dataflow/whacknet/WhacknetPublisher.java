@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import org.photonvision.common.configuration.ConfigManager;
 import org.photonvision.common.dataflow.CVPipelineResultConsumer;
+import org.photonvision.common.dataflow.networktables.NetworkTablesManager;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.vision.pipeline.AdvancedPipelineSettings;
@@ -72,7 +73,6 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         this.settingsSupplier = settingsSupplier;
         try {
             channel = DatagramChannel.open();
-            // Send packets and move on; never block the vision thread
             channel.configureBlocking(false);
         } catch (Exception e) {
             logger.error("Failed to initialize Whacknet UDP channel", e);
@@ -132,7 +132,10 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         buf.putDouble(stdDevs[0]);
         buf.putDouble(stdDevs[1]);
         buf.putDouble(stdDevs[2]);
-        buf.putLong(result.getImageCaptureTimestampNanos());
+
+        long captureMicros = result.getImageCaptureTimestampNanos() / 1000;
+        long offsetMicros = NetworkTablesManager.getInstance().getOffset();
+        buf.putLong(captureMicros + offsetMicros);
 
         buf.put((byte) settings.whacknetCameraId);
         buf.put((byte) usedTagCount);
@@ -193,7 +196,11 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
 
     private void sendPacket() {
         try {
-            String ip = ConfigManager.getInstance().getConfig().getNetworkConfig().ntServerAddress;
+            String ip = "127.0.0.1";
+            var connections = NetworkTablesManager.getInstance().getNTInst().getConnections();
+            if (connections.length > 0) {
+                ip = connections[0].remote_ip;
+            }
             int port = ConfigManager.getInstance().getConfig().getNetworkConfig().whacknetRioPort;
             if (ip == null || ip.isEmpty() || "0".equals(ip)) {
                 ip = "127.0.0.1";

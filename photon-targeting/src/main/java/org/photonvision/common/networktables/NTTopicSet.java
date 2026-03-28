@@ -57,6 +57,8 @@ public class NTTopicSet {
     public IntegerPublisher fpsLimitPublisher;
     public IntegerSubscriber fpsLimitSubscriber;
 
+    public edu.wpi.first.networktables.StructSubscriber<Transform3d> cameraTransformSubscriber;
+
     public DoublePublisher latencyMillisEntry;
     public DoublePublisher fpsEntry;
     public BooleanPublisher hasTargetEntry;
@@ -109,6 +111,11 @@ public class NTTopicSet {
 
         fpsLimitSubscriber.getTopic().publish().setDefault(-1);
 
+        cameraTransformSubscriber =
+                subTable
+                        .getStructTopic("cameraTransformRequest", Transform3d.struct)
+                        .subscribe(new Transform3d());
+
         latencyMillisEntry = subTable.getDoubleTopic("latencyMillis").publish();
         fpsEntry = subTable.getDoubleTopic("fps").publish();
         hasTargetEntry = subTable.getBooleanTopic("hasTarget").publish();
@@ -140,6 +147,8 @@ public class NTTopicSet {
 
         if (fpsLimitPublisher != null) fpsLimitPublisher.close();
         if (fpsLimitSubscriber != null) fpsLimitSubscriber.close();
+
+        if (cameraTransformSubscriber != null) cameraTransformSubscriber.close();
 
         if (latencyMillisEntry != null) latencyMillisEntry.close();
         if (fpsEntry != null) fpsEntry.close();

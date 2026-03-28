@@ -20,7 +20,10 @@ package org.photonvision.vision.pipeline;
 import edu.wpi.first.apriltag.AprilTagPoseEstimate;
 import edu.wpi.first.math.geometry.CoordinateSystem;
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +37,9 @@ import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.common.util.math.MathUtils;
 import org.photonvision.estimation.TargetModel;
+import org.photonvision.estimation.VisionEstimation;
 import org.photonvision.targeting.MultiTargetPNPResult;
+import org.photonvision.targeting.PnpResult;
 import org.photonvision.vision.aruco.ArucoDetectionResult;
 import org.photonvision.vision.frame.Frame;
 import org.photonvision.vision.frame.FrameThresholdType;
@@ -223,6 +228,81 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
 
                 targetList.add(target);
             }
+        }
+
+        if (settings.solvePNPEnabled && settings.useGyroConstraint) {
+            long constrainedStart = System.nanoTime();
+            var gyroState = getGyroContext();
+            if (gyroState != null) {
+                TargetModel tagModel = TargetModel.kAprilTag36h11;
+                if (settings.tagFamily != null && settings.tagFamily.name().equals("kTag16h5")) {
+                    tagModel = TargetModel.kAprilTag16h5;
+                }
+
+                Transform3d robot2camera =
+                        new Transform3d(
+                                new Translation3d(
+                                        settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
+                                new Rotation3d(
+                                        Units.degreesToRadians(settings.whacknetOffsetRoll),
+                                        Units.degreesToRadians(settings.whacknetOffsetPitch),
+                                        Units.degreesToRadians(settings.whacknetOffsetYaw)));
+
+                Pose3d robotPoseSeed = new Pose3d(0, 0, 0, new Rotation3d(0, 0, gyroState.yawRadians()));
+                var atfl = ConfigManager.getInstance().getConfig().getApriltagFieldLayout();
+                if (multiTagResult.isPresent()) {
+                    robotPoseSeed =
+                            new Pose3d()
+                                    .plus(multiTagResult.get().estimatedPose.best)
+                                    .transformBy(robot2camera.inverse());
+                } else if (!targetList.isEmpty()) {
+                    var firstTarget = targetList.get(0);
+                    var tagPose = atfl.getTagPose(firstTarget.getFiducialId());
+                    if (tagPose != null && tagPose.isPresent()) {
+                        Pose3d camPose =
+                                tagPose.get().transformBy(firstTarget.getBestCameraToTarget3d().inverse());
+                        robotPoseSeed = camPose.transformBy(robot2camera.inverse());
+                    }
+                }
+
+                var constrainedResultOpt =
+                        VisionEstimation.estimateRobotPoseConstrainedSolvepnp(
+                                frameStaticProperties.cameraCalibration.cameraIntrinsics.getAsWpilibMat(),
+                                frameStaticProperties.cameraCalibration.distCoeffs.getAsWpilibMat(),
+                                TrackedTarget.simpleFromTrackedTargets(targetList),
+                                robot2camera,
+                                robotPoseSeed,
+                                atfl,
+                                tagModel,
+                                false,
+                                new Rotation2d(gyroState.yawRadians()),
+                                settings.gyroWeight);
+
+                if (constrainedResultOpt != null && constrainedResultOpt.isPresent()) {
+                    var constrainedResult = constrainedResultOpt.get();
+                    var robotToField = constrainedResult.best;
+                    var camToField = robotToField.plus(robot2camera);
+
+                    var newPnpResult =
+                            new PnpResult(
+                                    camToField,
+                                    camToField,
+                                    0,
+                                    constrainedResult.bestReprojErr,
+                                    constrainedResult.bestReprojErr);
+
+                    List<Short> idsUsed = new ArrayList<>();
+                    for (var t : targetList) {
+                        var tagPose = atfl.getTagPose(t.getFiducialId());
+                        if (tagPose != null && tagPose.isPresent()) {
+                            idsUsed.add((short) t.getFiducialId());
+                        }
+                    }
+
+                    multiTagResult = Optional.of(new MultiTargetPNPResult(newPnpResult, idsUsed));
+                }
+            }
+            sumPipeNanosElapsed += (System.nanoTime() - constrainedStart);
         }
 
         if (targetList.size() > Packet.MAX_ARRAY_LEN) {

@@ -19,6 +19,7 @@ package org.photonvision.vision.processes;
 
 import edu.wpi.first.cscore.CameraServerJNI;
 import edu.wpi.first.cscore.VideoException;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.util.Units;
 import io.javalin.websocket.WsContext;
 import java.util.ArrayList;
@@ -78,7 +79,7 @@ public class VisionModule {
     // OutputStreamPipeline
     private final LinkedList<BiConsumer<Frame, List<TrackedTarget>>> streamResultConsumers =
             new LinkedList<>();
-    private final NTDataPublisher ntConsumer;
+    private NTDataPublisher ntConsumer;
     private final UIDataPublisher uiDataConsumer;
     private final StatusLEDConsumer statusLEDsConsumer;
     private final WhacknetPublisher whacknetConsumer;
@@ -156,7 +157,9 @@ public class VisionModule {
                         pipelineManager::getDriverMode,
                         this::setDriverMode,
                         this::getFPSLimit,
-                        this::setFPSLimit);
+                        this::setFPSLimit,
+                        this::setCameraTransform);
+
         uiDataConsumer = new UIDataPublisher(visionSource.getSettables().getConfiguration().uniqueName);
         statusLEDsConsumer =
                 new StatusLEDConsumer(visionSource.getSettables().getConfiguration().uniqueName);
@@ -637,6 +640,25 @@ public class VisionModule {
     public void setFPSLimit(int fps) {
         this.fpsLimit = fps;
         saveAndBroadcastAll();
+    }
+
+    public void setCameraTransform(Transform3d transform) {
+        logger.info("Received camera transform from NT: " + transform);
+        boolean changed = false;
+        for (var settings : pipelineManager.userPipelineSettings) {
+            if (settings instanceof AdvancedPipelineSettings advSettings) {
+                advSettings.whacknetOffsetX = transform.getTranslation().getX();
+                advSettings.whacknetOffsetY = transform.getTranslation().getY();
+                advSettings.whacknetOffsetZ = transform.getTranslation().getZ();
+                advSettings.whacknetOffsetRoll = Units.radiansToDegrees(transform.getRotation().getX());
+                advSettings.whacknetOffsetPitch = Units.radiansToDegrees(transform.getRotation().getY());
+                advSettings.whacknetOffsetYaw = Units.radiansToDegrees(transform.getRotation().getZ());
+                changed = true;
+            }
+        }
+        if (changed) {
+            saveAndBroadcastAll();
+        }
     }
 
     /**
