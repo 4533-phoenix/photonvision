@@ -36,7 +36,7 @@ import org.photonvision.common.logging.Logger;
 public class WhacknetReceiver {
     private static final Logger logger = new Logger(WhacknetReceiver.class, LogGroup.NetworkTables);
     private final TreeMap<Long, GyroState> history = new TreeMap<>();
-    private static final int PACKET_SIZE = 64;
+    private static final int PACKET_SIZE = 56;
     private static final long STALE_TIMEOUT_MS = 100;
     private static final long HISTORY_WINDOW_MICROS = 1_000_000; // 1 second
 
@@ -135,7 +135,7 @@ public class WhacknetReceiver {
                 double yawVelocity = bb.getDouble();
 
                 // Translate the timestamp to the local clock
-                long ntOffset = NetworkTablesManager.getInstance().getOffset();
+                long ntOffset = NetworkTablesManager.getInstance().getNTInst().getServerTimeOffset().orElse(0L);
                 long localTranslatedTimestamp = rioTimestamp - ntOffset;
 
                 // Create the gyro state
@@ -278,7 +278,6 @@ public class WhacknetReceiver {
                 yawAcc1 = (s1.yawVelocityRadPerSec() - s0.yawVelocityRadPerSec()) / deltaTime;
             }
 
-            // ALWAYS use Quintic Hermite! It dynamically adapts its accuracy.
             return new InterpolatedGyroState(
                     localMicros,
                     normalizeAngle(
