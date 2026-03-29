@@ -244,13 +244,14 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
                 if (this.dynamicRobotToCamera != null) {
                     robot2camera = this.dynamicRobotToCamera;
                 } else {
-                    robot2camera = new Transform3d(
-                            new Translation3d(
-                                    settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
-                            new Rotation3d(
-                                    Units.degreesToRadians(settings.whacknetOffsetRoll),
-                                    Units.degreesToRadians(settings.whacknetOffsetPitch),
-                                    Units.degreesToRadians(settings.whacknetOffsetYaw)));
+                    robot2camera =
+                            new Transform3d(
+                                    new Translation3d(
+                                            settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
+                                    new Rotation3d(
+                                            Units.degreesToRadians(settings.whacknetOffsetRoll),
+                                            Units.degreesToRadians(settings.whacknetOffsetPitch),
+                                            Units.degreesToRadians(settings.whacknetOffsetYaw)));
                 }
 
                 Pose3d robotPoseSeed = new Pose3d(0, 0, 0, new Rotation3d(0, 0, gyroState.yawRadians()));
@@ -320,7 +321,13 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
         var fps = fpsResult.output;
 
         return new CVPipelineResult(
-                frame.sequenceID, sumPipeNanosElapsed, fps, targetList, multiTagResult, constrainedResult, frame);
+                frame.sequenceID,
+                sumPipeNanosElapsed,
+                fps,
+                targetList,
+                multiTagResult,
+                constrainedResult,
+                frame);
     }
 
     private void drawThresholdFrame(Mat greyMat, Mat outputMat, int windowSize, double constant) {

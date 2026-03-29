@@ -157,7 +157,8 @@ public class PhotonCamera implements AutoCloseable {
                                 PubSubOption.sendAll(true),
                                 PubSubOption.pollStorage(20));
         resultSubscriber = new PacketSubscriber<>(rawBytesEntry, PhotonPipelineResult.photonStruct);
-        cameraTransformPublisher = cameraTable.getStructTopic("cameraTransform", Transform3d.struct).publish();
+        cameraTransformPublisher =
+                cameraTable.getStructTopic("cameraTransform", Transform3d.struct).publish();
         driverModePublisher = cameraTable.getBooleanTopic("driverModeRequest").publish();
         driverModeSubscriber = cameraTable.getBooleanTopic("driverMode").subscribe(false);
         fpsLimitPublisher = cameraTable.getIntegerTopic("fpsLimitRequest").publish();
@@ -370,8 +371,9 @@ public class PhotonCamera implements AutoCloseable {
     }
 
     /**
-     * Sets the robot-to-camera transform for this camera. This is used by the coprocessor to
-     * perform constrained solvePNP.
+     * Sets the robot-to-camera transform for this camera. This is used by the coprocessor to perform
+     * constrained solvePNP.
+     *
      * @param transform The robot-to-camera transform
      */
     public void setRobotToCameraTransform(Transform3d transform) {

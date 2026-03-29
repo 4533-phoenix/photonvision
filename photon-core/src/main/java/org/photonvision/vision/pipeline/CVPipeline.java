@@ -17,6 +17,7 @@
 
 package org.photonvision.vision.pipeline;
 
+import edu.wpi.first.math.geometry.Transform3d;
 import org.photonvision.common.dataflow.whacknet.WhacknetReceiver;
 import org.photonvision.common.dataflow.whacknet.WhacknetReceiver.InterpolatedGyroState;
 import org.photonvision.vision.camera.QuirkyCamera;
@@ -25,8 +26,6 @@ import org.photonvision.vision.frame.FrameStaticProperties;
 import org.photonvision.vision.frame.FrameThresholdType;
 import org.photonvision.vision.opencv.Releasable;
 import org.photonvision.vision.pipeline.result.CVPipelineResult;
-
-import edu.wpi.first.math.geometry.Transform3d;
 
 public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelineSettings>
         implements Releasable {

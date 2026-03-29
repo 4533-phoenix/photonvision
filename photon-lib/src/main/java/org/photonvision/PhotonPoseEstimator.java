@@ -109,10 +109,11 @@ public class PhotonPoseEstimator {
         CONSTRAINED_SOLVEPNP,
 
         /**
-         * Use all visible tags to compute a single pose estimate on coprocessor using the
-         * constrained solver. This option needs to be enabled on the PhotonVision web UI as well.
-         * If using the CONSTRAINED_SOLVEPNP_ON_COPROCESSOR strategy, you must call {@link PhotonCamera#setRobotToCameraTransform(Transform3d)}
-         * to send the robot-to-camera transform to the coprocessor.
+         * Use all visible tags to compute a single pose estimate on coprocessor using the constrained
+         * solver. This option needs to be enabled on the PhotonVision web UI as well. If using the
+         * CONSTRAINED_SOLVEPNP_ON_COPROCESSOR strategy, you must call {@link
+         * PhotonCamera#setRobotToCameraTransform(Transform3d)} to send the robot-to-camera transform to
+         * the coprocessor.
          */
         CONSTRAINED_SOLVEPNP_ON_COPROCESSOR
     }
@@ -662,7 +663,12 @@ public class PhotonPoseEstimator {
                     }
                     case CONSTRAINED_SOLVEPNP_ON_COPROCESSOR -> {
                         if (cameraResult.getConstrainedResult().isEmpty()) {
-                            yield update(cameraResult, cameraMatrix, distCoeffs, constrainedPnpParams, this.multiTagFallbackStrategy);
+                            yield update(
+                                    cameraResult,
+                                    cameraMatrix,
+                                    distCoeffs,
+                                    constrainedPnpParams,
+                                    this.multiTagFallbackStrategy);
                         }
                         yield estimateCoprocConstrainedPose(cameraResult);
                     }
@@ -851,7 +857,8 @@ public class PhotonPoseEstimator {
 
     /**
      * Return the estimated position of the robot by using all visible tags to compute a single pose
-     * estimate on coprocessor using constrained solver. This option needs to be enabled on the PhotonVision web UI as well.
+     * estimate on coprocessor using constrained solver. This option needs to be enabled on the
+     * PhotonVision web UI as well.
      *
      * @param cameraResult A pipeline result from the camera.
      * @return An {@link EstimatedRobotPose} with an estimated pose, timestamp, and targets used to
@@ -865,7 +872,8 @@ public class PhotonPoseEstimator {
         }
 
         var best_tf = cameraResult.getConstrainedResult().get().estimatedPose.best;
-        var best = Pose3d.kZero.plus(best_tf).relativeTo(fieldTags.getOrigin()).plus(robotToCamera.inverse());
+        var best =
+                Pose3d.kZero.plus(best_tf).relativeTo(fieldTags.getOrigin()).plus(robotToCamera.inverse());
         return Optional.of(
                 new EstimatedRobotPose(
                         best,

@@ -70,7 +70,9 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
     // Reuse array to prevent GC allocations
     private final double[] currentStdDevs = new double[3];
 
-    public WhacknetPublisher(Supplier<CVPipelineSettings> settingsSupplier, Supplier<Transform3d> dynamicRobotToCameraSupplier) {
+    public WhacknetPublisher(
+            Supplier<CVPipelineSettings> settingsSupplier,
+            Supplier<Transform3d> dynamicRobotToCameraSupplier) {
         this.settingsSupplier = settingsSupplier;
         this.dynamicRobotToCameraSupplier = dynamicRobotToCameraSupplier;
         try {
@@ -227,29 +229,29 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
 
     private void updateTransformCache(AdvancedPipelineSettings settings) {
         var dynamicTrf = dynamicRobotToCameraSupplier.get();
-            
+
         if (dynamicTrf != null) {
             cachedRobotToCameraInverted = dynamicTrf.inverse();
             lastSettings = null; // Invalidate cache so it recalculates if dynamic transform goes away
         } else {
             if (lastSettings == null
-                || settings.whacknetOffsetX != lastSettings.whacknetOffsetX
-                || settings.whacknetOffsetY != lastSettings.whacknetOffsetY
-                || settings.whacknetOffsetZ != lastSettings.whacknetOffsetZ
-                || settings.whacknetOffsetRoll != lastSettings.whacknetOffsetRoll
-                || settings.whacknetOffsetPitch != lastSettings.whacknetOffsetPitch
-                || settings.whacknetOffsetYaw != lastSettings.whacknetOffsetYaw) {
-        
-            Transform3d robotToCamera =
-                new Transform3d(
-                    new Translation3d(
-                        settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
-                    new Rotation3d(
-                        Units.degreesToRadians(settings.whacknetOffsetRoll),
-                        Units.degreesToRadians(settings.whacknetOffsetPitch),
-                        Units.degreesToRadians(settings.whacknetOffsetYaw)));
-            cachedRobotToCameraInverted = robotToCamera.inverse();
-            lastSettings = settings;
+                    || settings.whacknetOffsetX != lastSettings.whacknetOffsetX
+                    || settings.whacknetOffsetY != lastSettings.whacknetOffsetY
+                    || settings.whacknetOffsetZ != lastSettings.whacknetOffsetZ
+                    || settings.whacknetOffsetRoll != lastSettings.whacknetOffsetRoll
+                    || settings.whacknetOffsetPitch != lastSettings.whacknetOffsetPitch
+                    || settings.whacknetOffsetYaw != lastSettings.whacknetOffsetYaw) {
+
+                Transform3d robotToCamera =
+                        new Transform3d(
+                                new Translation3d(
+                                        settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
+                                new Rotation3d(
+                                        Units.degreesToRadians(settings.whacknetOffsetRoll),
+                                        Units.degreesToRadians(settings.whacknetOffsetPitch),
+                                        Units.degreesToRadians(settings.whacknetOffsetYaw)));
+                cachedRobotToCameraInverted = robotToCamera.inverse();
+                lastSettings = settings;
             }
         }
     }

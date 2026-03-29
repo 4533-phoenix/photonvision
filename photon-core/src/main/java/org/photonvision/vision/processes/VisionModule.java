@@ -111,7 +111,9 @@ public class VisionModule {
 
         mismatch = false;
 
-        whacknetConsumer = new WhacknetPublisher(pipelineManager::getCurrentPipelineSettings, () -> this.dynamicRobotToCamera);
+        whacknetConsumer =
+                new WhacknetPublisher(
+                        pipelineManager::getCurrentPipelineSettings, () -> this.dynamicRobotToCamera);
         cameraQuirks = visionSource.getCameraConfiguration().cameraQuirks;
 
         if (visionSource.getCameraConfiguration().cameraQuirks == null)

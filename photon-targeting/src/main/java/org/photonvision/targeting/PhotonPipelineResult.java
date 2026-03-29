@@ -85,20 +85,19 @@ public class PhotonPipelineResult
      * @param targets The list of targets identified by the pipeline.
      * @param result Result from multi-target PNP.
      */
-
     public PhotonPipelineResult(
-        long sequenceID,
-        long captureTimestamp,
-        long publishTimestamp,
-        long timeSinceLastPong,
-        List<PhotonTrackedTarget> targets,
-        Optional<MultiTargetPNPResult> result) {
-    this(
-        new PhotonPipelineMetadata(
-            captureTimestamp, publishTimestamp, sequenceID, timeSinceLastPong),
-        targets,
-        result,
-        Optional.empty());
+            long sequenceID,
+            long captureTimestamp,
+            long publishTimestamp,
+            long timeSinceLastPong,
+            List<PhotonTrackedTarget> targets,
+            Optional<MultiTargetPNPResult> result) {
+        this(
+                new PhotonPipelineMetadata(
+                        captureTimestamp, publishTimestamp, sequenceID, timeSinceLastPong),
+                targets,
+                result,
+                Optional.empty());
     }
 
     /**
@@ -115,19 +114,19 @@ public class PhotonPipelineResult
      * @param constrainedResult Result from constrained multi-target PNP.
      */
     public PhotonPipelineResult(
-        long sequenceID,
-        long captureTimestamp,
-        long publishTimestamp,
-        long timeSinceLastPong,
-        List<PhotonTrackedTarget> targets,
-        Optional<MultiTargetPNPResult> result,
-        Optional<MultiTargetPNPResult> constrainedResult) {
-    this(
-        new PhotonPipelineMetadata(
-            captureTimestamp, publishTimestamp, sequenceID, timeSinceLastPong),
-        targets,
-        result,
-        constrainedResult);
+            long sequenceID,
+            long captureTimestamp,
+            long publishTimestamp,
+            long timeSinceLastPong,
+            List<PhotonTrackedTarget> targets,
+            Optional<MultiTargetPNPResult> result,
+            Optional<MultiTargetPNPResult> constrainedResult) {
+        this(
+                new PhotonPipelineMetadata(
+                        captureTimestamp, publishTimestamp, sequenceID, timeSinceLastPong),
+                targets,
+                result,
+                constrainedResult);
     }
 
     public PhotonPipelineResult(
@@ -194,8 +193,8 @@ public class PhotonPipelineResult
     }
 
     /**
-     * Return the latest constrained-target result. Be sure to check {@code getConstrainedResult().isPresent()}
-     * before using the pose estimate!
+     * Return the latest constrained-target result. Be sure to check {@code
+     * getConstrainedResult().isPresent()} before using the pose estimate!
      *
      * @return The constrained PNP result. Empty if not available.
      */

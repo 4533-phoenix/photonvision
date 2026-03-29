@@ -255,13 +255,14 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                 if (this.dynamicRobotToCamera != null) {
                     robot2camera = this.dynamicRobotToCamera;
                 } else {
-                    robot2camera = new Transform3d(
-                            new Translation3d(
-                                    settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
-                            new Rotation3d(
-                                    Units.degreesToRadians(settings.whacknetOffsetRoll),
-                                    Units.degreesToRadians(settings.whacknetOffsetPitch),
-                                    Units.degreesToRadians(settings.whacknetOffsetYaw)));
+                    robot2camera =
+                            new Transform3d(
+                                    new Translation3d(
+                                            settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
+                                    new Rotation3d(
+                                            Units.degreesToRadians(settings.whacknetOffsetRoll),
+                                            Units.degreesToRadians(settings.whacknetOffsetPitch),
+                                            Units.degreesToRadians(settings.whacknetOffsetYaw)));
                 }
 
                 Pose3d robotPoseSeed = new Pose3d(0, 0, 0, new Rotation3d(0, 0, gyroState.yawRadians()));
@@ -299,7 +300,6 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                     var fieldToRobot = constrainedResultVal.best;
                     var fieldToCamera = fieldToRobot.plus(robot2camera);
 
-
                     var newPnpResult =
                             new PnpResult(
                                     fieldToCamera,
@@ -332,7 +332,13 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
         var fps = fpsResult.output;
 
         return new CVPipelineResult(
-                frame.sequenceID, sumPipeNanosElapsed, fps, targetList, multiTagResult, constrainedResult, frame);
+                frame.sequenceID,
+                sumPipeNanosElapsed,
+                fps,
+                targetList,
+                multiTagResult,
+                constrainedResult,
+                frame);
     }
 
     @Override
