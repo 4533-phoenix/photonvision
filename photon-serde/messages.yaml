@@ -92,3 +92,6 @@
   - name: multitagResult
     type: MultiTargetPNPResult
     optional: True
+  - name: constrainedResult
+    type: MultiTargetPNPResult
+    optional: True

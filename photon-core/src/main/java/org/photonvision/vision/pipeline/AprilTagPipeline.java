@@ -174,6 +174,7 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
 
         // Do multi-tag pose estimation
         Optional<MultiTargetPNPResult> multiTagResult = Optional.empty();
+        Optional<MultiTargetPNPResult> constrainedResult = Optional.empty();
         if (settings.solvePNPEnabled && settings.doMultiTarget) {
             var multiTagOutput = multiTagPNPPipe.run(targetList);
             sumPipeNanosElapsed += multiTagOutput.nanosElapsed;
@@ -250,14 +251,18 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                     tagModel = TargetModel.kAprilTag16h5;
                 }
 
-                Transform3d robot2camera =
-                        new Transform3d(
-                                new Translation3d(
-                                        settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
-                                new Rotation3d(
-                                        Units.degreesToRadians(settings.whacknetOffsetRoll),
-                                        Units.degreesToRadians(settings.whacknetOffsetPitch),
-                                        Units.degreesToRadians(settings.whacknetOffsetYaw)));
+                Transform3d robot2camera;
+                if (this.dynamicRobotToCamera != null) {
+                    robot2camera = this.dynamicRobotToCamera;
+                } else {
+                    robot2camera = new Transform3d(
+                            new Translation3d(
+                                    settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
+                            new Rotation3d(
+                                    Units.degreesToRadians(settings.whacknetOffsetRoll),
+                                    Units.degreesToRadians(settings.whacknetOffsetPitch),
+                                    Units.degreesToRadians(settings.whacknetOffsetYaw)));
+                }
 
                 Pose3d robotPoseSeed = new Pose3d(0, 0, 0, new Rotation3d(0, 0, gyroState.yawRadians()));
                 var atfl = ConfigManager.getInstance().getConfig().getApriltagFieldLayout();
@@ -290,17 +295,18 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                                 settings.gyroWeight);
 
                 if (constrainedResultOpt != null && constrainedResultOpt.isPresent()) {
-                    var constrainedResult = constrainedResultOpt.get();
-                    var robotToField = constrainedResult.best;
-                    var camToField = robotToField.plus(robot2camera);
+                    var constrainedResultVal = constrainedResultOpt.get();
+                    var fieldToRobot = constrainedResultVal.best;
+                    var fieldToCamera = fieldToRobot.plus(robot2camera);
+
 
                     var newPnpResult =
                             new PnpResult(
-                                    camToField,
-                                    camToField,
+                                    fieldToCamera,
+                                    fieldToCamera,
                                     0,
-                                    constrainedResult.bestReprojErr,
-                                    constrainedResult.bestReprojErr);
+                                    constrainedResultVal.bestReprojErr,
+                                    constrainedResultVal.bestReprojErr);
 
                     List<Short> idsUsed = new ArrayList<>();
                     for (var t : targetList) {
@@ -310,7 +316,7 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                         }
                     }
 
-                    multiTagResult = Optional.of(new MultiTargetPNPResult(newPnpResult, idsUsed));
+                    constrainedResult = Optional.of(new MultiTargetPNPResult(newPnpResult, idsUsed));
                 }
             }
             sumPipeNanosElapsed += (System.nanoTime() - constrainedStart);
@@ -326,7 +332,7 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
         var fps = fpsResult.output;
 
         return new CVPipelineResult(
-                frame.sequenceID, sumPipeNanosElapsed, fps, targetList, multiTagResult, frame);
+                frame.sequenceID, sumPipeNanosElapsed, fps, targetList, multiTagResult, constrainedResult, frame);
     }
 
     @Override

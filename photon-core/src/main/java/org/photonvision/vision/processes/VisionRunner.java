@@ -38,6 +38,8 @@ import org.photonvision.vision.pipeline.AdvancedPipelineSettings;
 import org.photonvision.vision.pipeline.CVPipeline;
 import org.photonvision.vision.pipeline.result.CVPipelineResult;
 
+import edu.wpi.first.math.geometry.Transform3d;
+
 /** VisionRunner has a frame supplier, a pipeline supplier, and a result consumer */
 @SuppressWarnings("rawtypes")
 public class VisionRunner {
@@ -50,6 +52,7 @@ public class VisionRunner {
     private final List<Runnable> runnableList = new ArrayList<Runnable>();
     private final QuirkyCamera cameraQuirks;
     private final Supplier<Integer> fpsLimitSupplier;
+    private final Supplier<Transform3d> dynamicRobotToCameraSupplier;
 
     private long loopCount;
 
@@ -60,6 +63,7 @@ public class VisionRunner {
      * @param frameSupplier The supplier of the latest frame.
      * @param pipelineSupplier The supplier of the current pipeline.
      * @param pipelineResultConsumer The consumer of the latest result.
+     * @param dynamicRobotToCameraSupplier The supplier of the dynamic robot-to-camera transform.
      */
     public VisionRunner(
             FrameProvider frameSupplier,
@@ -67,13 +71,15 @@ public class VisionRunner {
             Consumer<CVPipelineResult> pipelineResultConsumer,
             QuirkyCamera cameraQuirks,
             VisionModuleChangeSubscriber changeSubscriber,
-            Supplier<Integer> fpsLimitSupplier) {
+            Supplier<Integer> fpsLimitSupplier,
+            Supplier<Transform3d> dynamicRobotToCameraSupplier) {
         this.frameSupplier = frameSupplier;
         this.pipelineSupplier = pipelineSupplier;
         this.pipelineResultConsumer = pipelineResultConsumer;
         this.cameraQuirks = cameraQuirks;
         this.changeSubscriber = changeSubscriber;
         this.fpsLimitSupplier = fpsLimitSupplier;
+        this.dynamicRobotToCameraSupplier = dynamicRobotToCameraSupplier;
 
         visionProcessThread = new Thread(this::update);
         visionProcessThread.setName("VisionRunner - " + frameSupplier.getName());
@@ -163,6 +169,7 @@ public class VisionRunner {
             }
 
             var pipeline = pipelineSupplier.get();
+            pipeline.setDynamicRobotToCamera(dynamicRobotToCameraSupplier.get());
 
             // Tell our camera implementation here what kind of pre-processing we need it to
             // be doing

@@ -182,6 +182,14 @@ std::optional<EstimatedRobotPose> PhotonPoseEstimator::Update(
         ret = Update(result, this->multiTagFallbackStrategy);
       }
       break;
+    case CONSTRAINED_SOLVEPNP_ON_COPROCESSOR:
+      if (!result.ConstrainedResult()) {
+        ret = Update(result, cameraMatrixData, cameraDistCoeffs,
+                     constrainedPnpParams, this->multiTagFallbackStrategy);
+      } else {
+        ret = EstimateCoprocConstrainedPose(result);
+      }
+      break;
     case CONSTRAINED_SOLVEPNP: {
       using namespace frc;
 
@@ -463,6 +471,22 @@ PhotonPoseEstimator::EstimateCoprocMultiTagPose(
   return photon::EstimatedRobotPose(fieldToRobot, cameraResult.GetTimestamp(),
                                     cameraResult.GetTargets(),
                                     MULTI_TAG_PNP_ON_COPROCESSOR);
+}
+
+std::optional<EstimatedRobotPose>
+PhotonPoseEstimator::EstimateCoprocConstrainedPose(
+    PhotonPipelineResult cameraResult) {
+  if (!cameraResult.ConstrainedResult() || !ShouldEstimate(cameraResult)) {
+    return std::nullopt;
+  }
+
+  const auto field2camera = cameraResult.ConstrainedResult()->estimatedPose.best;
+
+  const auto fieldToRobot =
+      frc::Pose3d() + field2camera + m_robotToCamera.Inverse();
+  return photon::EstimatedRobotPose(fieldToRobot, cameraResult.GetTimestamp(),
+                                    cameraResult.GetTargets(),
+                                    CONSTRAINED_SOLVEPNP_ON_COPROCESSOR);
 }
 
 std::optional<EstimatedRobotPose> PhotonPoseEstimator::EstimateRioMultiTagPose(

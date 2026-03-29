@@ -92,6 +92,8 @@ public class VisionModule {
 
     private int fpsLimit = -1;
 
+    private volatile Transform3d dynamicRobotToCamera = null;
+
     FileSaveFrameConsumer inputFrameSaver;
     FileSaveFrameConsumer outputFrameSaver;
 
@@ -109,7 +111,7 @@ public class VisionModule {
 
         mismatch = false;
 
-        whacknetConsumer = new WhacknetPublisher(pipelineManager::getCurrentPipelineSettings);
+        whacknetConsumer = new WhacknetPublisher(pipelineManager::getCurrentPipelineSettings, () -> this.dynamicRobotToCamera);
         cameraQuirks = visionSource.getCameraConfiguration().cameraQuirks;
 
         if (visionSource.getCameraConfiguration().cameraQuirks == null)
@@ -141,7 +143,8 @@ public class VisionModule {
                         this::consumeResult,
                         this.cameraQuirks,
                         getChangeSubscriber(),
-                        this::getFPSLimit);
+                        this::getFPSLimit,
+                        () -> this.dynamicRobotToCamera);
         this.streamRunnable = new StreamRunnable(new OutputStreamPipeline());
         changeSubscriberHandle = DataChangeService.getInstance().addSubscriber(changeSubscriber);
 
@@ -643,21 +646,9 @@ public class VisionModule {
     }
 
     public void setCameraTransform(Transform3d transform) {
-        logger.info("Received camera transform from NT: " + transform);
-        boolean changed = false;
-        for (var settings : pipelineManager.userPipelineSettings) {
-            if (settings instanceof AdvancedPipelineSettings advSettings) {
-                advSettings.whacknetOffsetX = transform.getTranslation().getX();
-                advSettings.whacknetOffsetY = transform.getTranslation().getY();
-                advSettings.whacknetOffsetZ = transform.getTranslation().getZ();
-                advSettings.whacknetOffsetRoll = Units.radiansToDegrees(transform.getRotation().getX());
-                advSettings.whacknetOffsetPitch = Units.radiansToDegrees(transform.getRotation().getY());
-                advSettings.whacknetOffsetYaw = Units.radiansToDegrees(transform.getRotation().getZ());
-                changed = true;
-            }
-        }
-        if (changed) {
-            saveAndBroadcastAll();
+        if (this.dynamicRobotToCamera == null || !this.dynamicRobotToCamera.equals(transform)) {
+            logger.debug("Received new dynamic camera transform from NT: " + transform);
+            this.dynamicRobotToCamera = transform;
         }
     }
 

@@ -21,6 +21,7 @@ import edu.wpi.first.util.protobuf.Protobuf;
 import java.util.Optional;
 import org.photonvision.proto.Photon.ProtobufPhotonPipelineResult;
 import org.photonvision.targeting.MultiTargetPNPResult;
+import org.photonvision.targeting.PhotonPipelineMetadata;
 import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 import us.hebi.quickbuf.Descriptors.Descriptor;
@@ -45,14 +46,13 @@ public class PhotonPipelineResultProto
     @Override
     public PhotonPipelineResult unpack(ProtobufPhotonPipelineResult msg) {
         return new PhotonPipelineResult(
-                msg.getSequenceId(),
-                msg.getCaptureTimestampMicros(),
-                msg.getNtPublishTimestampMicros(),
-                msg.getTimeSinceLastPongMicros(),
-                PhotonTrackedTarget.proto.unpack(msg.getTargets()),
-                msg.hasMultiTargetResult()
-                        ? Optional.of(MultiTargetPNPResult.proto.unpack(msg.getMultiTargetResult()))
-                        : Optional.empty());
+            msg.getSequenceId(),
+            msg.getCaptureTimestampMicros(),
+            msg.getNtPublishTimestampMicros(),
+            msg.getTimeSinceLastPongMicros(),
+            PhotonTrackedTarget.proto.unpack(msg.getTargets()),
+            msg.hasMultiTargetResult() ? Optional.of(MultiTargetPNPResult.proto.unpack(msg.getMultiTargetResult())) : Optional.empty()
+        );
     }
 
     @Override
@@ -64,6 +64,13 @@ public class PhotonPipelineResultProto
                     msg.getMutableMultiTargetResult(), value.getMultiTagResult().get());
         } else {
             msg.clearMultiTargetResult();
+        }
+
+        if (value.getConstrainedResult().isPresent()) {
+            MultiTargetPNPResult.proto.pack(
+                    msg.getMutableConstrainedResult(), value.getConstrainedResult().get());
+        } else {
+            msg.clearConstrainedResult();
         }
 
         msg.setSequenceId(value.metadata.getSequenceID());

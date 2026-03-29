@@ -61,6 +61,12 @@ class PhotonPipelineResult : public PhotonPipelineResult_PhotonStruct {
   explicit PhotonPipelineResult(Args&&... args)
       : Base{std::forward<Args>(args)...} {}
 
+  PhotonPipelineResult(PhotonPipelineMetadata metadata,
+                       std::vector<PhotonTrackedTarget> targets,
+                       std::optional<MultiTargetPNPResult> multitagResult,
+                       std::optional<MultiTargetPNPResult> constrainedResult = std::nullopt)
+      : Base{std::move(metadata), std::move(targets), std::move(multitagResult), std::move(constrainedResult)} {}
+
   /**
    * Returns the best target in this pipeline result. If there are no targets,
    * this method will return null. The best target is determined by the target
@@ -113,6 +119,16 @@ class PhotonPipelineResult : public PhotonPipelineResult_PhotonStruct {
    */
   const std::optional<MultiTargetPNPResult>& MultiTagResult() const {
     return multitagResult;
+  }
+
+  /**
+   * Return the latest constrained-target result. Be sure to check
+   * `ConstrainedResult().has_value()` before using the pose estimate!
+   *
+   * @return The constrained PNP result. Empty if not available.
+   */
+  const std::optional<MultiTargetPNPResult>& ConstrainedResult() const {
+    return constrainedResult;
   }
 
   /**

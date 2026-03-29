@@ -40,9 +40,12 @@ public class PhotonPipelineResult
     /** The multitag result, if using an AprilTag pipeline with Multi-Target Estimation enabled. */
     public Optional<MultiTargetPNPResult> multitagResult;
 
+    /** The constrained solvePNP result, if using coproc-constrained solvePnP and it's enabled. */
+    public Optional<MultiTargetPNPResult> constrainedResult;
+
     /** Constructs an empty pipeline result. */
     public PhotonPipelineResult() {
-        this(new PhotonPipelineMetadata(), List.of(), Optional.empty());
+        this(new PhotonPipelineMetadata(), List.of(), Optional.empty(), Optional.empty());
     }
 
     /**
@@ -66,6 +69,7 @@ public class PhotonPipelineResult
                 new PhotonPipelineMetadata(
                         captureTimestampMicros, publishTimestampMicros, sequenceID, timeSinceLastPong),
                 targets,
+                Optional.empty(),
                 Optional.empty());
     }
 
@@ -81,27 +85,60 @@ public class PhotonPipelineResult
      * @param targets The list of targets identified by the pipeline.
      * @param result Result from multi-target PNP.
      */
+
     public PhotonPipelineResult(
-            long sequenceID,
-            long captureTimestamp,
-            long publishTimestamp,
-            long timeSinceLastPong,
-            List<PhotonTrackedTarget> targets,
-            Optional<MultiTargetPNPResult> result) {
-        this(
-                new PhotonPipelineMetadata(
-                        captureTimestamp, publishTimestamp, sequenceID, timeSinceLastPong),
-                targets,
-                result);
+        long sequenceID,
+        long captureTimestamp,
+        long publishTimestamp,
+        long timeSinceLastPong,
+        List<PhotonTrackedTarget> targets,
+        Optional<MultiTargetPNPResult> result) {
+    this(
+        new PhotonPipelineMetadata(
+            captureTimestamp, publishTimestamp, sequenceID, timeSinceLastPong),
+        targets,
+        result,
+        Optional.empty());
+    }
+
+    /**
+     * Constructs a pipeline result with a constrained solve result.
+     *
+     * @param sequenceID The number of frames processed by this camera since boot
+     * @param captureTimestamp The time, in uS in the coprocessor's timebase, that the coprocessor
+     *     captured the image this result contains the targeting info of
+     * @param publishTimestamp The time, in uS in the coprocessor's timebase, that the coprocessor
+     *     published targeting info
+     * @param timeSinceLastPong The time since the last Time Sync Pong in uS.
+     * @param targets The list of targets identified by the pipeline.
+     * @param result Result from multi-target PNP.
+     * @param constrainedResult Result from constrained multi-target PNP.
+     */
+    public PhotonPipelineResult(
+        long sequenceID,
+        long captureTimestamp,
+        long publishTimestamp,
+        long timeSinceLastPong,
+        List<PhotonTrackedTarget> targets,
+        Optional<MultiTargetPNPResult> result,
+        Optional<MultiTargetPNPResult> constrainedResult) {
+    this(
+        new PhotonPipelineMetadata(
+            captureTimestamp, publishTimestamp, sequenceID, timeSinceLastPong),
+        targets,
+        result,
+        constrainedResult);
     }
 
     public PhotonPipelineResult(
             PhotonPipelineMetadata metadata,
             List<PhotonTrackedTarget> targets,
-            Optional<MultiTargetPNPResult> result) {
+            Optional<MultiTargetPNPResult> result,
+            Optional<MultiTargetPNPResult> constrainedResult) {
         this.metadata = metadata;
         this.targets.addAll(targets);
         this.multitagResult = result;
+        this.constrainedResult = constrainedResult;
     }
 
     /**
@@ -157,6 +194,16 @@ public class PhotonPipelineResult
     }
 
     /**
+     * Return the latest constrained-target result. Be sure to check {@code getConstrainedResult().isPresent()}
+     * before using the pose estimate!
+     *
+     * @return The constrained PNP result. Empty if not available.
+     */
+    public Optional<MultiTargetPNPResult> getConstrainedResult() {
+        return constrainedResult;
+    }
+
+    /**
      * Return the latest multi-target result. Be sure to check {@code getMultiTagResult().isPresent()}
      * before using the pose estimate!
      *
@@ -186,6 +233,8 @@ public class PhotonPipelineResult
                 + targets
                 + ", multitagResult="
                 + multitagResult
+                + ", constrainedResult="
+                + constrainedResult
                 + "]";
     }
 
@@ -196,6 +245,7 @@ public class PhotonPipelineResult
         result = prime * result + ((metadata == null) ? 0 : metadata.hashCode());
         result = prime * result + ((targets == null) ? 0 : targets.hashCode());
         result = prime * result + ((multitagResult == null) ? 0 : multitagResult.hashCode());
+        result = prime * result + ((constrainedResult == null) ? 0 : constrainedResult.hashCode());
         return result;
     }
 
@@ -214,6 +264,9 @@ public class PhotonPipelineResult
         if (multitagResult == null) {
             if (other.multitagResult != null) return false;
         } else if (!multitagResult.equals(other.multitagResult)) return false;
+        if (constrainedResult == null) {
+            if (other.constrainedResult != null) return false;
+        } else if (!constrainedResult.equals(other.constrainedResult)) return false;
         return true;
     }
 

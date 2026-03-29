@@ -26,11 +26,14 @@ import org.photonvision.vision.frame.FrameThresholdType;
 import org.photonvision.vision.opencv.Releasable;
 import org.photonvision.vision.pipeline.result.CVPipelineResult;
 
+import edu.wpi.first.math.geometry.Transform3d;
+
 public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelineSettings>
         implements Releasable {
     protected S settings;
     protected FrameStaticProperties frameStaticProperties;
     protected QuirkyCamera cameraQuirks;
+    protected volatile Transform3d dynamicRobotToCamera = null;
 
     private final FrameThresholdType thresholdType;
     protected long lastCaptureTimestampMicros = 0;
@@ -40,6 +43,10 @@ public abstract class CVPipeline<R extends CVPipelineResult, S extends CVPipelin
 
     public CVPipeline(FrameThresholdType thresholdType) {
         this.thresholdType = thresholdType;
+    }
+
+    public void setDynamicRobotToCamera(Transform3d trf) {
+        this.dynamicRobotToCamera = trf;
     }
 
     public FrameThresholdType getThresholdType() {

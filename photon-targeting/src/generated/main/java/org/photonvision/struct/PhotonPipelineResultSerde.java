@@ -43,9 +43,9 @@ import edu.wpi.first.util.struct.Struct;
 public class PhotonPipelineResultSerde implements PacketSerde<PhotonPipelineResult> {
 
     @Override
-    public final String getInterfaceUUID() { return "4b2ff16a964b5e2bf04be0c1454d91c4"; }
+    public final String getInterfaceUUID() { return "4de105f415df652948aebff57bd52ef1"; }
     @Override
-    public final String getSchema() { return "PhotonPipelineMetadata:ac0a45f686457856fb30af77699ea356 metadata;PhotonTrackedTarget:cc6dbb5c5c1e0fa808108019b20863f1 targets[?];optional MultiTargetPNPResult:541096947e9f3ca2d3f425ff7b04aa7b multitagResult;"; }
+    public final String getSchema() { return "PhotonPipelineMetadata:ac0a45f686457856fb30af77699ea356 metadata;PhotonTrackedTarget:cc6dbb5c5c1e0fa808108019b20863f1 targets[?];optional MultiTargetPNPResult:541096947e9f3ca2d3f425ff7b04aa7b multitagResult;optional MultiTargetPNPResult:541096947e9f3ca2d3f425ff7b04aa7b constrainedResult;"; }
     @Override
     public final String getTypeName() { return "PhotonPipelineResult"; }
 
@@ -65,6 +65,9 @@ public class PhotonPipelineResultSerde implements PacketSerde<PhotonPipelineResu
 
         // multitagResult is optional! it better not be a VLA too
         packet.encodeOptional(value.multitagResult);
+
+        // constrainedResult is optional! it better not be a VLA too
+        packet.encodeOptional(value.constrainedResult);
     }
 
     @Override
@@ -80,13 +83,16 @@ public class PhotonPipelineResultSerde implements PacketSerde<PhotonPipelineResu
         // multitagResult is optional! it better not be a VLA too
         ret.multitagResult = packet.decodeOptional(MultiTargetPNPResult.photonStruct);
 
+        // constrainedResult is optional! it better not be a VLA too
+        ret.constrainedResult = packet.decodeOptional(MultiTargetPNPResult.photonStruct);
+
         return ret;
     }
 
     @Override
     public PacketSerde<?>[] getNestedPhotonMessages() {
         return new PacketSerde<?>[] {
-            MultiTargetPNPResult.photonStruct,PhotonPipelineMetadata.photonStruct,PhotonTrackedTarget.photonStruct
+            PhotonTrackedTarget.photonStruct,PhotonPipelineMetadata.photonStruct,MultiTargetPNPResult.photonStruct
         };
     }
 

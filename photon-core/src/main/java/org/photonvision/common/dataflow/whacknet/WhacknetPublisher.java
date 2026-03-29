@@ -53,6 +53,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
 
     private DatagramChannel channel;
     private final Supplier<CVPipelineSettings> settingsSupplier;
+    private final Supplier<Transform3d> dynamicRobotToCameraSupplier;
 
     // Direct buffer for zero-copy JNI transitions
     private final ByteBuffer buf = ByteBuffer.allocateDirect(64).order(ByteOrder.LITTLE_ENDIAN);
@@ -69,8 +70,9 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
     // Reuse array to prevent GC allocations
     private final double[] currentStdDevs = new double[3];
 
-    public WhacknetPublisher(Supplier<CVPipelineSettings> settingsSupplier) {
+    public WhacknetPublisher(Supplier<CVPipelineSettings> settingsSupplier, Supplier<Transform3d> dynamicRobotToCameraSupplier) {
         this.settingsSupplier = settingsSupplier;
+        this.dynamicRobotToCameraSupplier = dynamicRobotToCameraSupplier;
         try {
             channel = DatagramChannel.open();
             channel.configureBlocking(false);
@@ -95,7 +97,11 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         if (result.hasTargets()) {
             Transform3d fieldToCamera = null;
 
-            if (result.multiTagResult != null && result.multiTagResult.isPresent()) {
+            if (result.constrainedResult != null && result.constrainedResult.isPresent()) {
+                var cr = result.constrainedResult.get();
+                fieldToCamera = cr.estimatedPose.best;
+                usedTagCount = cr.fiducialIDsUsed.size();
+            } else if (result.multiTagResult != null && result.multiTagResult.isPresent()) {
                 var mtr = result.multiTagResult.get();
                 fieldToCamera = mtr.estimatedPose.best;
                 usedTagCount = mtr.fiducialIDsUsed.size();
@@ -220,24 +226,31 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
     }
 
     private void updateTransformCache(AdvancedPipelineSettings settings) {
-        if (lastSettings == null
+        var dynamicTrf = dynamicRobotToCameraSupplier.get();
+            
+        if (dynamicTrf != null) {
+            cachedRobotToCameraInverted = dynamicTrf.inverse();
+            lastSettings = null; // Invalidate cache so it recalculates if dynamic transform goes away
+        } else {
+            if (lastSettings == null
                 || settings.whacknetOffsetX != lastSettings.whacknetOffsetX
                 || settings.whacknetOffsetY != lastSettings.whacknetOffsetY
                 || settings.whacknetOffsetZ != lastSettings.whacknetOffsetZ
                 || settings.whacknetOffsetRoll != lastSettings.whacknetOffsetRoll
                 || settings.whacknetOffsetPitch != lastSettings.whacknetOffsetPitch
                 || settings.whacknetOffsetYaw != lastSettings.whacknetOffsetYaw) {
-
+        
             Transform3d robotToCamera =
-                    new Transform3d(
-                            new Translation3d(
-                                    settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
-                            new Rotation3d(
-                                    Units.degreesToRadians(settings.whacknetOffsetRoll),
-                                    Units.degreesToRadians(settings.whacknetOffsetPitch),
-                                    Units.degreesToRadians(settings.whacknetOffsetYaw)));
+                new Transform3d(
+                    new Translation3d(
+                        settings.whacknetOffsetX, settings.whacknetOffsetY, settings.whacknetOffsetZ),
+                    new Rotation3d(
+                        Units.degreesToRadians(settings.whacknetOffsetRoll),
+                        Units.degreesToRadians(settings.whacknetOffsetPitch),
+                        Units.degreesToRadians(settings.whacknetOffsetYaw)));
             cachedRobotToCameraInverted = robotToCamera.inverse();
             lastSettings = settings;
+            }
         }
     }
 }

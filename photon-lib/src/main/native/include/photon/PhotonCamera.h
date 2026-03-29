@@ -159,6 +159,12 @@ class PhotonCamera {
   void SetLEDMode(LEDMode led);
 
   /**
+   * Sets the robot-to-camera transform for this camera. This is used by the
+   * coprocessor to perform constrained solvePNP.
+   */
+  void SetRobotToCameraTransform(const frc::Transform3d& transform);
+
+  /**
    * Returns the name of the camera.
    * This will return the same value that was given to the constructor as
    * cameraName.
@@ -221,6 +227,7 @@ class PhotonCamera {
   nt::IntegerSubscriber pipelineIndexSub;
   nt::IntegerPublisher ledModePub;
   nt::IntegerSubscriber ledModeSub;
+  nt::StructPublisher<frc::Transform3d> cameraTransformPublisher;
   nt::StringSubscriber versionEntry;
 
   nt::DoubleArraySubscriber cameraIntrinsicsSubscriber;

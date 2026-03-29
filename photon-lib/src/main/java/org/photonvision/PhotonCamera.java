@@ -29,6 +29,7 @@ import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.MatBuilder;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.numbers.*;
 import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.BooleanSubscriber;
@@ -41,6 +42,7 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.PubSubOption;
 import edu.wpi.first.networktables.StringSubscriber;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -63,6 +65,7 @@ public class PhotonCamera implements AutoCloseable {
 
     private final NetworkTable cameraTable;
     PacketSubscriber<PhotonPipelineResult> resultSubscriber;
+    StructPublisher<Transform3d> cameraTransformPublisher;
     BooleanPublisher driverModePublisher;
     BooleanSubscriber driverModeSubscriber;
     IntegerPublisher fpsLimitPublisher;
@@ -80,6 +83,7 @@ public class PhotonCamera implements AutoCloseable {
     @Override
     public void close() {
         resultSubscriber.close();
+        cameraTransformPublisher.close();
         driverModePublisher.close();
         driverModeSubscriber.close();
         fpsLimitPublisher.close();
@@ -153,6 +157,7 @@ public class PhotonCamera implements AutoCloseable {
                                 PubSubOption.sendAll(true),
                                 PubSubOption.pollStorage(20));
         resultSubscriber = new PacketSubscriber<>(rawBytesEntry, PhotonPipelineResult.photonStruct);
+        cameraTransformPublisher = cameraTable.getStructTopic("cameraTransform", Transform3d.struct).publish();
         driverModePublisher = cameraTable.getBooleanTopic("driverModeRequest").publish();
         driverModeSubscriber = cameraTable.getBooleanTopic("driverMode").subscribe(false);
         fpsLimitPublisher = cameraTable.getIntegerTopic("fpsLimitRequest").publish();
@@ -362,6 +367,15 @@ public class PhotonCamera implements AutoCloseable {
      */
     public void setFPSLimit(int fps) {
         fpsLimitPublisher.set(fps);
+    }
+
+    /**
+     * Sets the robot-to-camera transform for this camera. This is used by the coprocessor to
+     * perform constrained solvePNP.
+     * @param transform The robot-to-camera transform
+     */
+    public void setRobotToCameraTransform(Transform3d transform) {
+        cameraTransformPublisher.set(transform);
     }
 
     /**
