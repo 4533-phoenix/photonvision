@@ -45,8 +45,7 @@ enum PoseStrategy {
   MULTI_TAG_PNP_ON_COPROCESSOR,
   MULTI_TAG_PNP_ON_RIO,
   CONSTRAINED_SOLVEPNP,
-  PNP_DISTANCE_TRIG_SOLVE,
-  CONSTRAINED_SOLVEPNP_ON_COPROCESSOR
+  PNP_DISTANCE_TRIG_SOLVE
 };
 
 struct ConstrainedSolvepnpParams {
@@ -324,14 +323,6 @@ class PhotonPoseEstimator {
    */
   std::optional<EstimatedRobotPose> EstimateClosestToReferencePose(
       PhotonPipelineResult cameraResult, frc::Pose3d referencePose);
-
-  /**
-   * Return the estimated position of the robot by using all visible tags to
-   * compute a single pose estimate on coprocessor. This option needs to be
-   * enabled on the PhotonVision web UI as well.
-   */
-  std::optional<EstimatedRobotPose> EstimateCoprocConstrainedPose(
-      PhotonPipelineResult cameraResult);
 
   /**
    * Return the estimated position of the robot by using all visible tags to

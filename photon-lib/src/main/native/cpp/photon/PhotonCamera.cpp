@@ -143,8 +143,6 @@ PhotonCamera::PhotonCamera(nt::NetworkTableInstance instance,
           rootTable->GetIntegerTopic("pipelineIndexState").Subscribe(0)),
       ledModePub(mainTable->GetIntegerTopic("ledModeRequest").Publish()),
       ledModeSub(mainTable->GetIntegerTopic("ledModeState").Subscribe(0)),
-      cameraTransformPublisher(
-          rootTable->GetStructTopic<frc::Transform3d>("cameraTransformRequest").Publish()),
       versionEntry(mainTable->GetStringTopic("version").Subscribe("")),
       cameraIntrinsicsSubscriber(
           rootTable->GetDoubleArrayTopic("cameraIntrinsics").Subscribe({})),
@@ -311,10 +309,6 @@ LEDMode PhotonCamera::GetLEDMode() const {
 
 void PhotonCamera::SetLEDMode(LEDMode mode) {
   ledModePub.Set(static_cast<int>(mode));
-}
-
-void PhotonCamera::SetRobotToCameraTransform(const frc::Transform3d& transform) {
-  cameraTransformPublisher.Set(transform);
 }
 
 const std::string_view PhotonCamera::GetCameraName() const {

@@ -3,7 +3,7 @@ import struct
 
 # Configuration
 UDP_IP = "0.0.0.0"  # Listen on all available interfaces
-UDP_PORT = 7001     # The port WhacknetPublisher is sending to
+UDP_PORT = 7002     # The port WhacknetPublisher is sending to
 
 # Python struct format string:
 # <      : Little-endian

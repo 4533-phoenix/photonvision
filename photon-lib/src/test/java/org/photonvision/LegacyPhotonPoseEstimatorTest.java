@@ -880,7 +880,8 @@ class LegacyPhotonPoseEstimatorTest {
                                                                         -0.08413452932300695,
                                                                         0.9130568172784148))),
                                                 0.1),
-                                        new ArrayList<Short>(8))));
+                                        new ArrayList<Short>(8))),
+                        Optional.empty());
 
         final double camPitch = Units.degreesToRadians(30.0);
         final Transform3d kRobotToCam =
