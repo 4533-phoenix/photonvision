@@ -23,7 +23,6 @@ import edu.wpi.first.apriltag.AprilTagPoseEstimate;
 import edu.wpi.first.apriltag.AprilTagPoseEstimator.Config;
 import edu.wpi.first.math.geometry.CoordinateSystem;
 import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -265,7 +264,14 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                                             Units.degreesToRadians(settings.whacknetOffsetYaw)));
                 }
 
-                Pose3d robotPoseSeed = new Pose3d(0, 0, 0, new Rotation3d(0, 0, gyroState.yawRadians()));
+                // --- 6 DOF CHANGE START ---
+                Rotation3d gyroRotation =
+                        new Rotation3d(
+                                gyroState.rollRadians(), gyroState.pitchRadians(), gyroState.yawRadians());
+
+                Pose3d robotPoseSeed = new Pose3d(0, 0, 0, gyroRotation);
+                // --- 6 DOF CHANGE END ---
+
                 var atfl = ConfigManager.getInstance().getConfig().getApriltagFieldLayout();
                 if (multiTagResult.isPresent()) {
                     robotPoseSeed =
@@ -292,7 +298,7 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                                 atfl,
                                 tagModel,
                                 false,
-                                new Rotation2d(gyroState.yawRadians()),
+                                gyroRotation,
                                 settings.gyroWeight);
 
                 if (constrainedResultOpt != null && constrainedResultOpt.isPresent()) {

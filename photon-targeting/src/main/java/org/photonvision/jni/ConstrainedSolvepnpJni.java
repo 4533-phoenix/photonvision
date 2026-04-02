@@ -28,4 +28,15 @@ public class ConstrainedSolvepnpJni {
             double[] point_observations,
             double gyro_θ,
             double gyro_error_scale_fac);
+
+    public static native double[] do_optimization_6dof(
+            boolean headingFree,
+            int numTags,
+            double[] cameraCal,
+            double[] robotToCamera,
+            double[] guess6D,
+            double[] field2points,
+            double[] point_observations,
+            double[] gyroMeas3D,
+            double gyroErrorScaleFac);
 }

@@ -25,6 +25,7 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -285,6 +286,139 @@ public class VisionEstimation {
         } else {
             var pnpresult = new PnpResult();
             pnpresult.best = new Transform3d(new Transform2d(ret[0], ret[1], new Rotation2d(ret[2])));
+            return Optional.of(pnpresult);
+        }
+    }
+
+    /**
+     * Performs constrained solvePNP using 3d-2d point correspondences of visible AprilTags to
+     * estimate the robot's pose.
+     *
+     * @param gyroRotation Full 3D rotation from the gyro state (Roll, Pitch, Yaw)
+     */
+    public static Optional<PnpResult> estimateRobotPoseConstrainedSolvepnp(
+            Matrix<N3, N3> cameraMatrix,
+            Matrix<N8, N1> distCoeffs,
+            List<PhotonTrackedTarget> visTags,
+            Transform3d robot2camera,
+            Pose3d robotPoseSeed,
+            AprilTagFieldLayout tagLayout,
+            TargetModel tagModel,
+            boolean headingFree,
+            Rotation3d gyroRotation,
+            double gyroErrorScaleFac) {
+
+        if (tagLayout == null
+                || visTags == null
+                || tagLayout.getTags().isEmpty()
+                || visTags.isEmpty()) {
+            return Optional.empty();
+        }
+
+        var corners = new ArrayList<TargetCorner>();
+        var knownTags = new ArrayList<AprilTag>();
+        // ensure these are AprilTags in our layout
+        for (var tgt : visTags) {
+            int id = tgt.getFiducialId();
+            tagLayout
+                    .getTagPose(id)
+                    .ifPresent(
+                            pose -> {
+                                knownTags.add(new AprilTag(id, pose));
+                                corners.addAll(tgt.getDetectedCorners());
+                            });
+        }
+        if (knownTags.isEmpty() || corners.isEmpty() || corners.size() % 4 != 0) {
+            return Optional.empty();
+        }
+        OpenCvLoader.forceStaticLoad();
+
+        Point[] points = OpenCVHelp.cornersToPoints(corners);
+
+        // Undistort
+        {
+            MatOfPoint2f temp = new MatOfPoint2f();
+            MatOfDouble cameraMatrixMat = new MatOfDouble();
+            MatOfDouble distCoeffsMat = new MatOfDouble();
+            OpenCVHelp.matrixToMat(cameraMatrix.getStorage()).assignTo(cameraMatrixMat);
+            OpenCVHelp.matrixToMat(distCoeffs.getStorage()).assignTo(distCoeffsMat);
+
+            temp.fromArray(points);
+            Calib3d.undistortImagePoints(temp, temp, cameraMatrixMat, distCoeffsMat);
+            points = temp.toArray();
+
+            temp.release();
+            cameraMatrixMat.release();
+            distCoeffsMat.release();
+        }
+
+        // Rotate from wpilib to opencv camera CS
+        var robot2cameraBase =
+                MatBuilder.fill(Nat.N4(), Nat.N4(), 0, 0, 1, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1);
+        var robotToCamera = robot2camera.toMatrix().times(robot2cameraBase);
+
+        // Where we saw corners
+        var point_observations = new SimpleMatrix(2, points.length);
+        for (int i = 0; i < points.length; i++) {
+            point_observations.set(0, i, points[i].x);
+            point_observations.set(1, i, points[i].y);
+        }
+
+        // Affine corner locations
+        var objectTrls = new ArrayList<Translation3d>();
+        for (var tag : knownTags) objectTrls.addAll(tagModel.getFieldVertices(tag.pose));
+        var field2points = new SimpleMatrix(4, points.length);
+        for (int i = 0; i < objectTrls.size(); i++) {
+            field2points.set(0, i, objectTrls.get(i).getX());
+            field2points.set(1, i, objectTrls.get(i).getY());
+            field2points.set(2, i, objectTrls.get(i).getZ());
+            field2points.set(3, i, 1);
+        }
+
+        double[] cameraCal = {
+            cameraMatrix.get(0, 0),
+            cameraMatrix.get(1, 1),
+            cameraMatrix.get(0, 2),
+            cameraMatrix.get(1, 2),
+        };
+
+        double[] guess6D =
+                new double[] {
+                    robotPoseSeed.getX(),
+                    robotPoseSeed.getY(),
+                    robotPoseSeed.getZ(),
+                    robotPoseSeed.getRotation().getX(), // Roll
+                    robotPoseSeed.getRotation().getY(), // Pitch
+                    robotPoseSeed.getRotation().getZ() // Yaw
+                };
+
+        double[] gyroMeas3D =
+                new double[] {
+                    gyroRotation.getX(), // Roll
+                    gyroRotation.getY(), // Pitch
+                    gyroRotation.getZ() // Yaw
+                };
+
+        var ret =
+                ConstrainedSolvepnpJni.do_optimization_6dof(
+                        headingFree,
+                        knownTags.size(),
+                        cameraCal,
+                        robotToCamera.getData(),
+                        guess6D,
+                        field2points.getDDRM().getData(),
+                        point_observations.getDDRM().getData(),
+                        gyroMeas3D,
+                        gyroErrorScaleFac);
+
+        if (ret == null || ret.length < 6) {
+            return Optional.empty();
+        } else {
+            var pnpresult = new PnpResult();
+            // Map the 6 returned values to a full Transform3d
+            pnpresult.best =
+                    new Transform3d(
+                            new Translation3d(ret[0], ret[1], ret[2]), new Rotation3d(ret[3], ret[4], ret[5]));
             return Optional.of(pnpresult);
         }
     }

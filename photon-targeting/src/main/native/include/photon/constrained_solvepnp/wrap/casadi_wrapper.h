@@ -34,6 +34,7 @@ struct CameraCalibration {
 };
 
 using RobotStateMat = Eigen::Matrix<casadi_real, 3, 1>;
+using RobotState6DMat = Eigen::Matrix<casadi_real, 6, 1>;
 
 /**
  * Optimize x, where x is [x, y, theta]^T. Note points must be undistorted prior
@@ -49,5 +50,17 @@ wpi::expected<RobotStateMat, slp::ExitStatus> do_optimization(
     Eigen::Matrix<casadi_real, 2, Eigen::Dynamic, Eigen::ColMajor>
         point_observations,
     double gyroθ, double gyroErrorScaleFac);
+
+/**
+ * Optimize x, where x is [x, y, z, roll, pitch, yaw]^T.
+ */
+wpi::expected<RobotState6DMat, slp::ExitStatus> do_optimization_6dof(
+    bool heading_free, int nTags, CameraCalibration cameraCal,
+    Eigen::Matrix<casadi_real, 4, 4, Eigen::ColMajor> robot2camera,
+    RobotState6DMat x_guess,
+    Eigen::Matrix<casadi_real, 4, Eigen::Dynamic, Eigen::ColMajor> field2points,
+    Eigen::Matrix<casadi_real, 2, Eigen::Dynamic, Eigen::ColMajor> point_observations,
+    Eigen::Matrix<casadi_real, 3, 1> gyroMeas3D,
+    double gyroErrorScaleFac);
 
 }  // namespace constrained_solvepnp
