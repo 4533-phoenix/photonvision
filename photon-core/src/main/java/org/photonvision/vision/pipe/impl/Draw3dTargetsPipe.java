@@ -27,7 +27,6 @@ import org.opencv.imgproc.Imgproc;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.common.util.ColorHelper;
-import org.photonvision.estimation.OpenCVHelp;
 import org.photonvision.vision.calibration.CameraCalibrationCoefficients;
 import org.photonvision.vision.frame.FrameDivisor;
 import org.photonvision.vision.pipe.MutatingPipe;
@@ -36,6 +35,20 @@ import org.photonvision.vision.target.TrackedTarget;
 
 public class Draw3dTargetsPipe
         extends MutatingPipe<Pair<Mat, List<TrackedTarget>>, Draw3dTargetsPipe.Draw3dContoursParams> {
+    private static final double AXIS_LEN = 0.2;
+    // Cache the NATIVE matrix, not just the Java list!
+    private static final MatOfPoint3f AXIS_MAT = new MatOfPoint3f();
+
+    static {
+        AXIS_MAT.fromList(
+                List.of(
+                        new Point3(0, 0, 0),
+                        new Point3(0, 0, AXIS_LEN), // x-axis
+                        new Point3(-AXIS_LEN, 0, 0), // y-axis
+                        new Point3(0, -AXIS_LEN, 0) // z-axis
+                        ));
+    }
+
     Logger logger = new Logger(Draw3dTargetsPipe.class, LogGroup.VisionModule);
 
     @Override
@@ -90,15 +103,6 @@ public class Draw3dTargetsPipe
                         tempMat,
                         jac);
 
-                if (params.redistortPoints) {
-                    // Distort the points, so they match the image they're being overlaid on
-                    tempMat.fromList(
-                            OpenCVHelp.distortPoints(
-                                    tempMat.toList(),
-                                    params.cameraCalibrationCoefficients.getCameraIntrinsicsMat(),
-                                    params.cameraCalibrationCoefficients.getDistCoeffsMat()));
-                }
-
                 var bottomPoints = tempMat.toList();
 
                 Calib3d.projectPoints(
@@ -109,15 +113,6 @@ public class Draw3dTargetsPipe
                         params.cameraCalibrationCoefficients.getDistCoeffsMat(),
                         tempMat,
                         jac);
-
-                if (params.redistortPoints) {
-                    // Distort the points, so they match the image they're being overlaid on
-                    tempMat.fromList(
-                            OpenCVHelp.distortPoints(
-                                    tempMat.toList(),
-                                    params.cameraCalibrationCoefficients.getCameraIntrinsicsMat(),
-                                    params.cameraCalibrationCoefficients.getDistCoeffsMat()));
-                }
                 var topPoints = tempMat.toList();
 
                 dividePointList(bottomPoints);
@@ -134,27 +129,12 @@ public class Draw3dTargetsPipe
                 }
 
                 // Draw X, Y and Z axis
-                MatOfPoint3f pointMat = new MatOfPoint3f();
-                // OpenCV expects coordinates in EDN, but we want to visualize in NWU
-                // NWU | EDN
-                // X: Z
-                // Y: -X
-                // Z: -Y
-                final double AXIS_LEN = 0.2;
-                var list =
-                        List.of(
-                                new Point3(0, 0, 0),
-                                new Point3(0, 0, AXIS_LEN), // x-axis
-                                new Point3(-AXIS_LEN, 0, 0), // y-axis
-                                new Point3(0, -AXIS_LEN, 0)); // z-axis
-                pointMat.fromList(list);
-
                 // The detected target's rvec and tvec perform a rotation-translation transformation which
                 // converts points in the target's coordinate system to the camera's. This means applying
                 // the transformation to the target point (0,0,0) for example would give the target's center
                 // relative to the camera.
                 Calib3d.projectPoints(
-                        pointMat,
+                        AXIS_MAT, // Use the static native matrix!
                         target.getCameraRelativeRvec(),
                         target.getCameraRelativeTvec(),
                         params.cameraCalibrationCoefficients.getCameraIntrinsicsMat(),
@@ -208,7 +188,6 @@ public class Draw3dTargetsPipe
 
                 tempMat.release();
                 jac.release();
-                pointMat.release();
             }
 
             // draw corners

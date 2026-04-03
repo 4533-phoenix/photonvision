@@ -20,7 +20,6 @@ package org.photonvision.vision.pipeline;
 import edu.wpi.first.apriltag.AprilTagDetection;
 import edu.wpi.first.apriltag.AprilTagDetector;
 import edu.wpi.first.apriltag.AprilTagPoseEstimate;
-import edu.wpi.first.apriltag.AprilTagPoseEstimator.Config;
 import edu.wpi.first.math.geometry.CoordinateSystem;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -113,18 +112,11 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                 new AprilTagDetectionPipeParams(settings.tagFamily, config, quadParams));
 
         if (frameStaticProperties.cameraCalibration != null) {
+
             var cameraMatrix = frameStaticProperties.cameraCalibration.getCameraIntrinsicsMat();
             if (cameraMatrix != null && cameraMatrix.rows() > 0) {
-                var cx = cameraMatrix.get(0, 2)[0];
-                var cy = cameraMatrix.get(1, 2)[0];
-                var fx = cameraMatrix.get(0, 0)[0];
-                var fy = cameraMatrix.get(1, 1)[0];
-
                 singleTagPoseEstimatorPipe.setParams(
-                        new AprilTagPoseEstimatorPipeParams(
-                                new Config(tagWidth, fx, fy, cx, cy),
-                                frameStaticProperties.cameraCalibration,
-                                settings.numIterations));
+                        new AprilTagPoseEstimatorPipeParams(tagWidth, frameStaticProperties.cameraCalibration));
 
                 // TODO global state ew
                 var atfl = ConfigManager.getInstance().getConfig().getApriltagFieldLayout();
@@ -142,6 +134,10 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
             // We asked for a GREYSCALE frame, but didn't get one -- best we can do is give up
             return new CVPipelineResult(frame.sequenceID, 0, 0, List.of(), frame);
         }
+
+        // HOIST ALLOCATION: Create this once outside the detection loop!
+        TargetCalculationParameters targetCalcParams =
+                new TargetCalculationParameters(false, null, null, null, null, frameStaticProperties);
 
         CVPipeResult<List<AprilTagDetection>> tagDetectionPipeResult =
                 aprilTagDetectionPipe.run(frame.processedImage);
@@ -162,12 +158,8 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
             // Populate target list for multitag
             // (TODO: Address circular dependencies. Multitag only requires corners and IDs, this should
             // not be necessary.)
-            TrackedTarget target =
-                    new TrackedTarget(
-                            detection,
-                            null,
-                            new TargetCalculationParameters(
-                                    false, null, null, null, null, frameStaticProperties));
+
+            TrackedTarget target = new TrackedTarget(detection, null, targetCalcParams);
 
             targetList.add(target);
         }
@@ -183,14 +175,15 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
 
         // Do single-tag pose estimation
         if (settings.solvePNPEnabled) {
-            // Clear target list that was used for multitag so we can add target transforms
-            targetList.clear();
-            // TODO global state again ew
+            // DO NOT clear targetList here! Reuse targets to prevent double-undistorting points!
             var atfl = ConfigManager.getInstance().getConfig().getApriltagFieldLayout();
 
-            for (AprilTagDetection detection : usedDetections) {
+            for (int i = 0; i < usedDetections.size(); i++) {
+                AprilTagDetection detection = usedDetections.get(i);
+                TrackedTarget target = targetList.get(i); // Grab the existing target
+
                 AprilTagPoseEstimate tagPoseEstimate = null;
-                // Do single-tag estimation when "always enabled" or if a tag was not used for multitag
+
                 if (settings.doSingleTargetAlways
                         || !(multiTagResult.isPresent()
                                 && multiTagResult.get().fiducialIDsUsed.contains((short) detection.getId()))) {
@@ -199,18 +192,14 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                     tagPoseEstimate = poseResult.output;
                 }
 
-                // If single-tag estimation was not done, this is a multi-target tag from the layout
                 if (tagPoseEstimate == null && multiTagResult.isPresent()) {
-                    // compute this tag's camera-to-tag transform using the multitag result
                     var tagPose = atfl.getTagPose(detection.getId());
                     if (tagPose.isPresent()) {
                         var camToTag =
                                 new Transform3d(
                                         new Pose3d().plus(multiTagResult.get().estimatedPose.best), tagPose.get());
-                        // match expected AprilTag coordinate system
                         camToTag =
                                 CoordinateSystem.convert(camToTag, CoordinateSystem.NWU(), CoordinateSystem.EDN());
-                        // (AprilTag expects Z axis going into tag)
                         camToTag =
                                 new Transform3d(
                                         camToTag.getTranslation(),
@@ -219,26 +208,41 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
                     }
                 }
 
-                // populate the target list
-                // Challenge here is that TrackedTarget functions with OpenCV Contour
-                TrackedTarget target =
-                        new TrackedTarget(
-                                detection,
-                                tagPoseEstimate,
-                                new TargetCalculationParameters(
-                                        false, null, null, null, null, frameStaticProperties));
+                // Inject the pose into the existing target
+                if (tagPoseEstimate != null) {
+                    Transform3d bestPose =
+                            tagPoseEstimate.error1 <= tagPoseEstimate.error2
+                                    ? tagPoseEstimate.pose1
+                                    : tagPoseEstimate.pose2;
+                    Transform3d altPose =
+                            tagPoseEstimate.error1 <= tagPoseEstimate.error2
+                                    ? tagPoseEstimate.pose2
+                                    : tagPoseEstimate.pose1;
 
-                var correctedBestPose =
-                        MathUtils.convertOpenCVtoPhotonTransform(target.getBestCameraToTarget3d());
-                var correctedAltPose =
-                        MathUtils.convertOpenCVtoPhotonTransform(target.getAltCameraToTarget3d());
+                    bestPose = MathUtils.convertApriltagtoOpenCV(bestPose);
+                    altPose = MathUtils.convertApriltagtoOpenCV(altPose);
 
-                target.setBestCameraToTarget3d(
-                        new Transform3d(correctedBestPose.getTranslation(), correctedBestPose.getRotation()));
-                target.setAltCameraToTarget3d(
-                        new Transform3d(correctedAltPose.getTranslation(), correctedAltPose.getRotation()));
+                    target.setPoseAmbiguity(tagPoseEstimate.getAmbiguity());
 
-                targetList.add(target);
+                    // Create and set tvec/rvec directly
+                    var tvec = new org.opencv.core.Mat(3, 1, org.opencv.core.CvType.CV_64FC1);
+                    tvec.put(
+                            0,
+                            0,
+                            bestPose.getTranslation().getX(),
+                            bestPose.getTranslation().getY(),
+                            bestPose.getTranslation().getZ());
+                    target.setCameraRelativeTvec(tvec);
+                    tvec.release(); // Clean up native memory immediately
+
+                    var rvec = new org.opencv.core.Mat(3, 1, org.opencv.core.CvType.CV_64FC1);
+                    MathUtils.rotationToOpencvRvec(bestPose.getRotation(), rvec);
+                    target.setCameraRelativeRvec(rvec);
+                    rvec.release();
+
+                    target.setBestCameraToTarget3d(MathUtils.convertOpenCVtoPhotonTransform(bestPose));
+                    target.setAltCameraToTarget3d(MathUtils.convertOpenCVtoPhotonTransform(altPose));
+                }
             }
         }
 
@@ -325,7 +329,11 @@ public class AprilTagPipeline extends CVPipeline<CVPipelineResult, AprilTagPipel
         if (targetList.size() > Packet.MAX_ARRAY_LEN) {
             logger.error(
                     "We have " + targetList.size() + " targets! Arbitrarily dropping some on the floor");
-            targetList = targetList.subList(0, Packet.MAX_ARRAY_LEN);
+            // Release C++ memory for the targets we drop!
+            for (int i = Packet.MAX_ARRAY_LEN; i < targetList.size(); i++) {
+                targetList.get(i).release();
+            }
+            targetList.subList(Packet.MAX_ARRAY_LEN, targetList.size()).clear();
         }
 
         var fpsResult = calculateFPSPipe.run(null);

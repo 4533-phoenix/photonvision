@@ -175,15 +175,17 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
         }
 
         // Do single-tag pose estimation
+        // Do single-tag pose estimation
         if (settings.solvePNPEnabled) {
-            // Clear target list that was used for multitag so we can add target transforms
-            targetList.clear();
-            // TODO global state again ew
+            // DO NOT clear targetList here! Reuse targets to prevent double-undistorting points!
             var atfl = ConfigManager.getInstance().getConfig().getApriltagFieldLayout();
 
-            for (ArucoDetectionResult detection : tagDetectionPipeResult.output) {
+            for (int i = 0; i < tagDetectionPipeResult.output.size(); i++) {
+                ArucoDetectionResult detection = tagDetectionPipeResult.output.get(i);
+                TrackedTarget target = targetList.get(i); // Grab the existing target
+
                 AprilTagPoseEstimate tagPoseEstimate = null;
-                // Do single-tag estimation when "always enabled" or if a tag was not used for multitag
+
                 if (settings.doSingleTargetAlways
                         || !(multiTagResult.isPresent()
                                 && multiTagResult.get().fiducialIDsUsed.contains((short) detection.getId()))) {
@@ -192,42 +194,53 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
                     tagPoseEstimate = poseResult.output;
                 }
 
-                // If single-tag estimation was not done, this is a multi-target tag from the layout
                 if (tagPoseEstimate == null && multiTagResult.isPresent()) {
-                    // compute this tag's camera-to-tag transform using the multitag result
                     var tagPose = atfl.getTagPose(detection.getId());
                     if (tagPose.isPresent()) {
                         var camToTag =
                                 new Transform3d(
                                         new Pose3d().plus(multiTagResult.get().estimatedPose.best), tagPose.get());
-                        // match expected OpenCV coordinate system
                         camToTag =
                                 CoordinateSystem.convert(camToTag, CoordinateSystem.NWU(), CoordinateSystem.EDN());
-
                         tagPoseEstimate = new AprilTagPoseEstimate(camToTag, camToTag, 0, 0);
                     }
                 }
 
-                // populate the target list
-                // Challenge here is that TrackedTarget functions with OpenCV Contour
-                TrackedTarget target =
-                        new TrackedTarget(
-                                detection,
-                                tagPoseEstimate,
-                                new TargetCalculationParameters(
-                                        false, null, null, null, null, frameStaticProperties));
+                // Inject the pose into the existing target
+                if (tagPoseEstimate != null) {
+                    Transform3d bestPose =
+                            tagPoseEstimate.error1 <= tagPoseEstimate.error2
+                                    ? tagPoseEstimate.pose1
+                                    : tagPoseEstimate.pose2;
+                    Transform3d altPose =
+                            tagPoseEstimate.error1 <= tagPoseEstimate.error2
+                                    ? tagPoseEstimate.pose2
+                                    : tagPoseEstimate.pose1;
 
-                var correctedBestPose =
-                        MathUtils.convertOpenCVtoPhotonTransform(target.getBestCameraToTarget3d());
-                var correctedAltPose =
-                        MathUtils.convertOpenCVtoPhotonTransform(target.getAltCameraToTarget3d());
+                    bestPose = MathUtils.convertApriltagtoOpenCV(bestPose);
+                    altPose = MathUtils.convertApriltagtoOpenCV(altPose);
 
-                target.setBestCameraToTarget3d(
-                        new Transform3d(correctedBestPose.getTranslation(), correctedBestPose.getRotation()));
-                target.setAltCameraToTarget3d(
-                        new Transform3d(correctedAltPose.getTranslation(), correctedAltPose.getRotation()));
+                    target.setPoseAmbiguity(tagPoseEstimate.getAmbiguity());
 
-                targetList.add(target);
+                    // Create and set tvec/rvec directly
+                    var tvec = new org.opencv.core.Mat(3, 1, org.opencv.core.CvType.CV_64FC1);
+                    tvec.put(
+                            0,
+                            0,
+                            bestPose.getTranslation().getX(),
+                            bestPose.getTranslation().getY(),
+                            bestPose.getTranslation().getZ());
+                    target.setCameraRelativeTvec(tvec);
+                    tvec.release(); // Clean up native memory immediately
+
+                    var rvec = new org.opencv.core.Mat(3, 1, org.opencv.core.CvType.CV_64FC1);
+                    MathUtils.rotationToOpencvRvec(bestPose.getRotation(), rvec);
+                    target.setCameraRelativeRvec(rvec);
+                    rvec.release();
+
+                    target.setBestCameraToTarget3d(MathUtils.convertOpenCVtoPhotonTransform(bestPose));
+                    target.setAltCameraToTarget3d(MathUtils.convertOpenCVtoPhotonTransform(altPose));
+                }
             }
         }
 

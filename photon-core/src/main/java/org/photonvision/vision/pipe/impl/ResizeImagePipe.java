@@ -32,6 +32,9 @@ public class ResizeImagePipe extends MutatingPipe<Mat, ResizeImagePipe.ResizeIma
      */
     @Override
     protected Void process(Mat in) {
+        // Short-circuit to avoid JNI overhead if not downscaling
+        if (params.divisor().value == 1) return null;
+
         int width = in.cols() / params.divisor().value;
         int height = in.rows() / params.divisor().value;
         Imgproc.resize(in, in, new Size(width, height));

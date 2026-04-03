@@ -26,6 +26,7 @@ import org.opencv.core.Mat;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.jni.CscoreExtras;
+import org.photonvision.vision.frame.FrameThresholdType;
 import org.photonvision.vision.opencv.CVMat;
 import org.photonvision.vision.processes.VisionSourceSettables;
 
@@ -97,13 +98,11 @@ public class USBFrameProvider extends CpuImageProcessor {
             // TODO - consider a frame pool
             // TODO - getCurrentVideoMode is a JNI call for us, but profiling indicates it's fast
             var cameraMode = settables.getCurrentVideoMode();
+            PixelFormat format =
+                    (m_processType == FrameThresholdType.GREYSCALE) ? PixelFormat.kGray : PixelFormat.kBGR;
+            int channels = (format == PixelFormat.kGray) ? 1 : 3;
             var frame = new RawFrame();
-            frame.setInfo(
-                    cameraMode.width,
-                    cameraMode.height,
-                    // hard-coded 3 channel
-                    cameraMode.width * 3,
-                    PixelFormat.kBGR);
+            frame.setInfo(cameraMode.width, cameraMode.height, cameraMode.width * channels, format);
 
             // This is from wpi::Now, or WPIUtilJNI.now(). The epoch from grabFrame is uS since
             // Hal::initialize was called

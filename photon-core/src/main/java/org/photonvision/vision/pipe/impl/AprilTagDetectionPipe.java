@@ -59,14 +59,39 @@ public class AprilTagDetectionPipe
 
     @Override
     public void setParams(AprilTagDetectionPipeParams newParams) {
-        if (this.params == null || !this.params.equals(newParams)) {
+        boolean changed = false;
+
+        if (this.params == null) {
+            changed = true;
+        } else {
+            if (this.params.family() != newParams.family()) changed = true;
+
+            // Manual check for Detector Config
+            var oldCfg = this.params.detectorParams();
+            var newCfg = newParams.detectorParams();
+            if (oldCfg.numThreads != newCfg.numThreads
+                    || oldCfg.quadDecimate != newCfg.quadDecimate
+                    || oldCfg.quadSigma != newCfg.quadSigma
+                    || oldCfg.refineEdges != newCfg.refineEdges) changed = true;
+
+            // Manual check for Quad Thresholds
+            var oldQuad = this.params.quadParams();
+            var newQuad = newParams.quadParams();
+            if (oldQuad.minClusterPixels != newQuad.minClusterPixels
+                    || oldQuad.maxNumMaxima != newQuad.maxNumMaxima
+                    || oldQuad.criticalAngle != newQuad.criticalAngle
+                    || oldQuad.maxLineFitMSE != newQuad.maxLineFitMSE
+                    || oldQuad.minWhiteBlackDiff != newQuad.minWhiteBlackDiff
+                    || oldQuad.deglitch != newQuad.deglitch) changed = true;
+        }
+
+        // Only incur JNI and C++ memory reallocation overhead if settings changed
+        if (changed) {
             m_detector.setConfig(newParams.detectorParams());
             m_detector.setQuadThresholdParameters(newParams.quadParams());
-
             m_detector.clearFamilies();
             m_detector.addFamily(newParams.family().getNativeName());
         }
-
         super.setParams(newParams);
     }
 

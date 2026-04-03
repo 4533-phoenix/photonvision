@@ -25,10 +25,12 @@ public class GrayscalePipe extends CVPipe<Mat, Mat, GrayscalePipe.GrayscaleParam
     @Override
     protected Mat process(Mat in) {
         var outputMat = new Mat();
-        // We can save a copy here by sending the output of cvtcolor to outputMat directly
-        // rather than copying. Free performance!
-        Imgproc.cvtColor(in, outputMat, Imgproc.COLOR_BGR2GRAY, 3);
-
+        if (in.channels() == 1) {
+            // Already grayscale natively! Zero-copy pass-through.
+            in.copyTo(outputMat);
+        } else {
+            Imgproc.cvtColor(in, outputMat, Imgproc.COLOR_BGR2GRAY, 1);
+        }
         return outputMat;
     }
 
