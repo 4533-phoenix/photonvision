@@ -26,6 +26,7 @@ import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import org.opencv.core.Mat;
@@ -153,10 +154,6 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
 
         List<TrackedTarget> targetList = new ArrayList<>();
         for (ArucoDetectionResult detection : tagDetectionPipeResult.output) {
-            // Populate target list for multitag
-            // (TODO: Address circular dependencies. Multitag only requires corners and IDs, this should
-            // not be necessary.)
-
             targetList.add(
                     new TrackedTarget(
                             detection,
@@ -165,16 +162,34 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
                                     false, null, null, null, null, frameStaticProperties)));
         }
 
-        // Do multi-tag pose estimation
+        // Pre-compute single-tag poses for ambiguity filtering if multi-tag is enabled
+        HashMap<Integer, AprilTagPoseEstimate> cachedPoseEstimates = new HashMap<>();
         Optional<MultiTargetPNPResult> multiTagResult = Optional.empty();
         Optional<MultiTargetPNPResult> constrainedResult = Optional.empty();
+
         if (settings.solvePNPEnabled && settings.doMultiTarget) {
-            var multiTagOutput = multiTagPNPPipe.run(targetList);
+            List<TrackedTarget> multiTagTargetList = targetList;
+
+            // If ambiguity filtering is enabled (threshold < 1.0), pre-compute single-tag poses
+            if (settings.multiTagAmbiguityThreshold < 1.0) {
+                multiTagTargetList = new ArrayList<>();
+                for (int i = 0; i < tagDetectionPipeResult.output.size(); i++) {
+                    ArucoDetectionResult detection = tagDetectionPipeResult.output.get(i);
+                    var poseResult = singleTagPoseEstimatorPipe.run(detection);
+                    sumPipeNanosElapsed += poseResult.nanosElapsed;
+                    cachedPoseEstimates.put(detection.getId(), poseResult.output);
+
+                    if (poseResult.output.getAmbiguity() <= settings.multiTagAmbiguityThreshold) {
+                        multiTagTargetList.add(targetList.get(i));
+                    }
+                }
+            }
+
+            var multiTagOutput = multiTagPNPPipe.run(multiTagTargetList);
             sumPipeNanosElapsed += multiTagOutput.nanosElapsed;
             multiTagResult = multiTagOutput.output;
         }
 
-        // Do single-tag pose estimation
         // Do single-tag pose estimation
         if (settings.solvePNPEnabled) {
             // DO NOT clear targetList here! Reuse targets to prevent double-undistorting points!
@@ -189,9 +204,14 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
                 if (settings.doSingleTargetAlways
                         || !(multiTagResult.isPresent()
                                 && multiTagResult.get().fiducialIDsUsed.contains((short) detection.getId()))) {
-                    var poseResult = singleTagPoseEstimatorPipe.run(detection);
-                    sumPipeNanosElapsed += poseResult.nanosElapsed;
-                    tagPoseEstimate = poseResult.output;
+                    // Reuse cached pose estimate if available
+                    if (cachedPoseEstimates.containsKey(detection.getId())) {
+                        tagPoseEstimate = cachedPoseEstimates.get(detection.getId());
+                    } else {
+                        var poseResult = singleTagPoseEstimatorPipe.run(detection);
+                        sumPipeNanosElapsed += poseResult.nanosElapsed;
+                        tagPoseEstimate = poseResult.output;
+                    }
                 }
 
                 if (tagPoseEstimate == null && multiTagResult.isPresent()) {
@@ -327,7 +347,11 @@ public class ArucoPipeline extends CVPipeline<CVPipelineResult, ArucoPipelineSet
         if (targetList.size() > Packet.MAX_ARRAY_LEN) {
             logger.error(
                     "We have " + targetList.size() + " targets! Arbitrarily dropping some on the floor");
-            targetList = targetList.subList(0, Packet.MAX_ARRAY_LEN);
+            // Release C++ memory for the targets we drop!
+            for (int i = Packet.MAX_ARRAY_LEN; i < targetList.size(); i++) {
+                targetList.get(i).release();
+            }
+            targetList.subList(Packet.MAX_ARRAY_LEN, targetList.size()).clear();
         }
 
         var fpsResult = calculateFPSPipe.run(null);
