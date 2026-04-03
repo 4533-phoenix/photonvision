@@ -70,11 +70,12 @@ public class AprilTagPoseEstimatorPipe
     @Override
     protected AprilTagPoseEstimate process(AprilTagDetection in) {
         double[] corners = in.getCorners();
-        // WPILib returns corners in BL, BR, TR, TL. IPPE_SQUARE expects BR, BL, TL, TR
-        imagePoints.put(0, 0, new float[] {(float) corners[2], (float) corners[3]}); // BR
-        imagePoints.put(1, 0, new float[] {(float) corners[0], (float) corners[1]}); // BL
-        imagePoints.put(2, 0, new float[] {(float) corners[6], (float) corners[7]}); // TL
-        imagePoints.put(3, 0, new float[] {(float) corners[4], (float) corners[5]}); // TR
+
+        // Pass corners in standard WPILib [BL, BR, TR, TL] order
+        imagePoints.put(0, 0, new float[] {(float) corners[0], (float) corners[1]}); // BL
+        imagePoints.put(1, 0, new float[] {(float) corners[2], (float) corners[3]}); // BR
+        imagePoints.put(2, 0, new float[] {(float) corners[4], (float) corners[5]}); // TR
+        imagePoints.put(3, 0, new float[] {(float) corners[6], (float) corners[7]}); // TL
 
         float[] reprojErrors = new float[2];
         for (int i = 0; i < kNaNRetries + 1; i++) {
@@ -115,7 +116,7 @@ public class AprilTagPoseEstimatorPipe
     public void setParams(AprilTagPoseEstimatorPipe.AprilTagPoseEstimatorPipeParams newParams) {
         if (this.params == null || this.params.tagWidth() != newParams.tagWidth()) {
             double tagSize = newParams.tagWidth();
-            // Object space setup: Z points toward camera for IPPE_SQUARE
+            // Match WPILib OrthogonalIteration layout
             objectPoints.fromArray(
                     new Point3(-tagSize / 2, tagSize / 2, 0),
                     new Point3(tagSize / 2, tagSize / 2, 0),
