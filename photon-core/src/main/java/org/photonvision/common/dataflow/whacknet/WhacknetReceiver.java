@@ -135,9 +135,11 @@ public class WhacknetReceiver {
                 double yawVelocity = bb.getDouble();
 
                 // Translate the timestamp to the local clock
-                long ntOffset =
-                        NetworkTablesManager.getInstance().getNTInst().getServerTimeOffset().orElse(0L);
-                long localTranslatedTimestamp = rioTimestamp - ntOffset;
+                var offsetOpt = NetworkTablesManager.getInstance().getNTInst().getServerTimeOffset();
+                if (offsetOpt.isEmpty()) {
+                    continue;
+                }
+                long localTranslatedTimestamp = rioTimestamp - offsetOpt.getAsLong();
 
                 // Create the gyro state
                 var state =

@@ -146,8 +146,12 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         buf.putDouble(stdDevs[2]);
 
         long captureMicros = result.getImageCaptureTimestampNanos() / 1000;
-        long offsetMicros = NetworkTablesManager.getInstance().getOffset();
-        buf.putLong(captureMicros + offsetMicros);
+        var offsetOpt = NetworkTablesManager.getInstance().getNTInst().getServerTimeOffset();
+        if (offsetOpt.isEmpty()) {
+            return; 
+        }
+        long syncedFpgaMicros = captureMicros + offsetOpt.getAsLong();
+        buf.putLong(syncedFpgaMicros);
 
         buf.put((byte) settings.whacknetCameraId);
         buf.put((byte) usedTagCount);
