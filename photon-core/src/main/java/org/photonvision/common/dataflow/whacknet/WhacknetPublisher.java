@@ -48,7 +48,9 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
     private static final double SINGLE_TAG_POSE_CUTOFF_METERS = 4.0;
 
     private static final double[] SINGLE_TAG_BASE_STD_DEVS = {2.0, 2.0, 4.0};
+    private static final double[] CONSTRAINED_SINGLE_BASE_STD_DEVS = {0.9, 0.9, 1.5};
     private static final double[] MULTI_TAG_BASE_STD_DEVS = {0.5, 0.5, 1.0};
+    private static final double[] CONSTRAINED_MULTI_BASE_STD_DEVS = {0.2, 0.2, 0.5};
     private static final double[] INVALID_STD_DEVS = {0.0, 0.0, 0.0};
 
     private DatagramChannel channel;
@@ -95,6 +97,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         double poseX = 0.0, poseY = 0.0, poseRot = 0.0;
         double[] stdDevs = INVALID_STD_DEVS;
         int usedTagCount = 0;
+        boolean isConstrained = false;
 
         if (result.hasTargets()) {
             Transform3d fieldToCamera = null;
@@ -103,6 +106,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
                 var cr = result.constrainedResult.get();
                 fieldToCamera = cr.estimatedPose.best;
                 usedTagCount = cr.fiducialIDsUsed.size();
+                isConstrained = true;
             } else if (result.multiTagResult != null && result.multiTagResult.isPresent()) {
                 var mtr = result.multiTagResult.get();
                 fieldToCamera = mtr.estimatedPose.best;
@@ -128,7 +132,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
                 poseY = fieldToRobot.getY();
                 poseRot = fieldToRobot.getRotation().getZ();
 
-                calculateScaledStdDevs(fieldToRobot, result.targets, usedTagCount);
+                calculateScaledStdDevs(fieldToRobot, result.targets, usedTagCount, isConstrained);
                 stdDevs = currentStdDevs;
             }
         }
@@ -167,7 +171,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
     }
 
     private void calculateScaledStdDevs(
-            Transform3d robotPose, List<TrackedTarget> targets, int tagCount) {
+            Transform3d robotPose, List<TrackedTarget> targets, int tagCount, boolean isConstrained) {
         if (tagCount == 0) {
             System.arraycopy(INVALID_STD_DEVS, 0, currentStdDevs, 0, 3);
             return;
@@ -186,7 +190,14 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         }
 
         double avgDist = (validTagsForDist > 0) ? (totalDistance / validTagsForDist) : 4.0;
-        double[] base = (tagCount > 1) ? MULTI_TAG_BASE_STD_DEVS : SINGLE_TAG_BASE_STD_DEVS;
+        
+        double[] base;
+        if (tagCount > 1) {
+            base = isConstrained ? CONSTRAINED_MULTI_BASE_STD_DEVS : MULTI_TAG_BASE_STD_DEVS;
+        } else {
+            base = isConstrained ? CONSTRAINED_SINGLE_BASE_STD_DEVS : SINGLE_TAG_BASE_STD_DEVS;
+        }
+        
         double scaler = 1.0 + (Math.pow(avgDist, 2) / 30.0);
 
         currentStdDevs[0] = base[0] * scaler;
