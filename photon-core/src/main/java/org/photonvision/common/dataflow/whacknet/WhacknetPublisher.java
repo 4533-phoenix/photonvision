@@ -58,7 +58,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
     private final Supplier<Transform3d> dynamicRobotToCameraSupplier;
 
     // Direct buffer for zero-copy JNI transitions
-    private final ByteBuffer buf = ByteBuffer.allocateDirect(64).order(ByteOrder.LITTLE_ENDIAN);
+    private final ByteBuffer buf = ByteBuffer.allocateDirect(96).order(ByteOrder.LITTLE_ENDIAN);
 
     private String lastIpString = "";
     private InetSocketAddress resolvedAddress;
@@ -94,7 +94,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         // Refresh AprilTag lookup map if the field layout changed
         updateTagCache();
 
-        double poseX = 0.0, poseY = 0.0, poseRot = 0.0;
+        double poseX = 0.0, poseY = 0.0, poseZ = 0.0, poseRoll = 0.0, posePitch = 0.0, poseYaw = 0.0;
         double[] stdDevs = INVALID_STD_DEVS;
         int usedTagCount = 0;
         boolean isConstrained = false;
@@ -130,7 +130,10 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
 
                 poseX = fieldToRobot.getX();
                 poseY = fieldToRobot.getY();
-                poseRot = fieldToRobot.getRotation().getZ();
+                poseZ = fieldToRobot.getZ();
+                poseRoll = fieldToRobot.getRotation().getX();
+                posePitch = fieldToRobot.getRotation().getY();
+                poseYaw = fieldToRobot.getRotation().getZ();
 
                 calculateScaledStdDevs(fieldToRobot, result.targets, usedTagCount, isConstrained);
                 stdDevs = currentStdDevs;
@@ -140,7 +143,10 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
         buf.clear();
         buf.putDouble(poseX);
         buf.putDouble(poseY);
-        buf.putDouble(poseRot);
+        buf.putDouble(poseZ);
+        buf.putDouble(poseRoll);
+        buf.putDouble(posePitch);
+        buf.putDouble(poseYaw);
         buf.putDouble(stdDevs[0]);
         buf.putDouble(stdDevs[1]);
         buf.putDouble(stdDevs[2]);
