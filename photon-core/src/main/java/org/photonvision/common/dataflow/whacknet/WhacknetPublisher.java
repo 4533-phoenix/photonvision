@@ -51,7 +51,7 @@ public class WhacknetPublisher implements CVPipelineResultConsumer {
     private static final double[] CONSTRAINED_SINGLE_BASE_STD_DEVS = {0.9, 0.9, 1.5};
     private static final double[] MULTI_TAG_BASE_STD_DEVS = {0.5, 0.5, 1.0};
     private static final double[] CONSTRAINED_MULTI_BASE_STD_DEVS = {0.2, 0.2, 0.5};
-    private static final double[] INVALID_STD_DEVS = {0.0, 0.0, 0.0};
+    private static final double[] INVALID_STD_DEVS = {Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE};
 
     private DatagramChannel channel;
     private final Supplier<CVPipelineSettings> settingsSupplier;
